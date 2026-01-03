@@ -189,16 +189,16 @@ export const projects: Project[] = [
 ];
 
 export const contributors: Contributor[] = [
-  { id: '1', name: 'Rajesh Hamal', totalContributed: 50000, projectsSupported: 4, ward: 3, rank: 1 },
-  { id: '2', name: 'Sita Sharma', totalContributed: 35000, projectsSupported: 6, ward: 3, rank: 2 },
-  { id: '3', name: 'Krishna Adhikari', totalContributed: 28000, projectsSupported: 3, ward: 3, rank: 3 },
+  { id: '1', name: 'Laxman Thapa', totalContributed: 1000000, projectsSupported: 21, ward: 3, rank: 1 },
+  { id: '2', name: 'Smriti Khanal', totalContributed: 35000, projectsSupported: 6, ward: 3, rank: 2 },
+  { id: '3', name: 'Naman Adhikari', totalContributed: 28000, projectsSupported: 3, ward: 3, rank: 3 },
   { id: '4', name: 'Gita Poudel', totalContributed: 22000, projectsSupported: 5, ward: 3, rank: 4 },
   { id: '5', name: 'Ramesh Thapa', totalContributed: 18000, projectsSupported: 2, ward: 3, rank: 5 },
   { id: '6', name: 'Anita Gurung', totalContributed: 15000, projectsSupported: 4, ward: 3, rank: 6 },
   { id: '7', name: 'Bikash Rai', totalContributed: 12000, projectsSupported: 3, ward: 3, rank: 7 },
   { id: '8', name: 'Sunita Tamang', totalContributed: 10000, projectsSupported: 2, ward: 3, rank: 8 },
   { id: '9', name: 'Deepak Shrestha', totalContributed: 8000, projectsSupported: 2, ward: 3, rank: 9 },
-  { id: '10', name: 'Maya Karki', totalContributed: 7500, projectsSupported: 3, ward: 3, rank: 10 },
+  { id: '10', name: 'Aayush Rouniyar', totalContributed: 100, projectsSupported: 1, ward: 3, rank: 10 },
 ];
 
 export const formatCurrency = (amount: number): string => {
