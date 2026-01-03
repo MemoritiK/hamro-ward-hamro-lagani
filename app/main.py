@@ -1,14 +1,23 @@
 from fastapi import FastAPI
-from app.db import init_db
-from app.routers import projects, users, verification
+from contextlib import asynccontextmanager
+from db import create_db_and_tables 
+from routers import users, verification, projects, issues, expenses
 
-app = FastAPI()
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # create tables before app starts
+    create_db_and_tables()
+    yield
 
-# include routers
-app.include_router(projects.router, prefix="/projects", tags=["projects"])
+app = FastAPI(lifespan=lifespan)
+
 app.include_router(users.router, prefix="/user", tags=["users"])
-app.include_router(verification.router, prefix="/verification", tags=["verification"])
+app.include_router(verification.router, prefix="/verification", tags=["verify"])
+app.include_router(projects.router, prefix="/projects", tags=["projects"])
+app.include_router(issues.router, prefix="/issues", tags=["issues"])
+app.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
+
+@app.head("/")
+def read_root():
+    return {"202": "Working!"}

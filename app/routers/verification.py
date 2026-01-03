@@ -1,20 +1,14 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile
-from sqlmodel import select, SQLModel, Field
+from sqlmodel import select
 from typing import Annotated
-from app.db import SessionDep
-from app.routers.users import User, UserCitizenship, get_current_user, oauth2_scheme
+from db import SessionDep
+from models.users import User, UserCitizenship, CitizenshipBase, Citizenship
+from .users import get_current_user, oauth2_scheme
 from pathlib import Path
 import base64
 
 router = APIRouter()
 
-class CitizenshipBase(SQLModel):
-    phone: str = Field(index=True, unique=True)
-    path: str
-    verified: bool = Field(default=False)
-
-class Citizenship(CitizenshipBase, table=True):
-    id: int = Field(primary_key=True)
 
 MAX_SIZE = 1 * 1024 * 1024  # 1 MB
 UPLOAD_DIR = Path("Citizenship_dir")
@@ -33,7 +27,7 @@ async def upload_file(
 ):
     user_phone, _ = verify_user(session, token)
     if phone != user_phone:
-        raise HTTPException(status_code=404, detail="Invalid User")
+        raise HTTPException(status_code=401, detail="Invalid User")
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -70,7 +64,7 @@ async def get_file(
 
     u = session.exec(select(Citizenship).where(Citizenship.verified == False)).first()
     if u is None:
-        raise HTTPException(status_code=400, detail="No user found.")
+        raise HTTPException(status_code=404, detail="No user found.")
 
     path = Path(u.path)
     data = base64.b64encode(path.read_bytes()).decode()
