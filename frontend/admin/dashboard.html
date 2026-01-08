@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li><strong>Admin Dashboard</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/dashboard.html">← User Dashboard</a></li>
+                <li><button onclick="shared.logout()">Logout</button></li>
+            </ul>
+        </nav>
+        
+        <!-- Admin Quick Stats -->
+        <article>
+            <div class="grid" id="admin-stats">
+                <div><p>Loading statistics...</p></div>
+            </div>
+        </article>
+        
+        <!-- Admin Actions Grid -->
+        <div class="grid">
+            <!-- Column 1: User Management -->
+            <div>
+                <article>
+                    <header>
+                        <h3>User Management</h3>
+                    </header>
+                    <div id="user-management">
+                        <p>
+                            <a href="/admin/users.html" role="button" class="primary">Manage Users</a>
+                            <a href="/admin/verify-users.html" role="button" class="secondary">Verify Users</a>
+                        </p>
+                        <div id="users-stats"></div>
+                    </div>
+                </article>
+                
+                <article>
+                    <header>
+                        <h3>Verification Queue</h3>
+                    </header>
+                    <div id="verification-queue">
+                        <p>Loading pending verifications...</p>
+                    </div>
+                </article>
+            </div>
+            
+            <!-- Column 2: Project Management -->
+            <div>
+                <article>
+                    <header>
+                        <h3>Project Management</h3>
+                    </header>
+                    <div id="project-management">
+                        <p>
+                            <a href="/admin/projects-manage.html" role="button" class="primary">Create New Project</a>
+                            <a href="/projects/list.html" role="button" class="secondary">View All Projects</a>
+                        </p>
+                        <div id="projects-stats"></div>
+                    </div>
+                </article>
+                
+                <article>
+                    <header>
+                        <h3>Issues & Reports</h3>
+                    </header>
+                    <div id="issues-management">
+                        <p>Loading recent issues...</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <article>
+            <header>
+                <h3>Recent Activity</h3>
+            </header>
+            <div id="recent-activity">
+                <p>Loading activity...</p>
+            </div>
+        </article>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                // Check if user is admin
+                if (!shared.isAdmin()) {
+                    alert('Unauthorized access. Redirecting to user dashboard.');
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+                
+                await loadAdminDashboard();
+            });
+            
+            async function loadAdminDashboard() {
+                try {
+                    const api = shared.getAPI();
+                    
+                    // Load projects
+                    const projects = await api.projects.listProjects();
+                    
+                    // Calculate stats
+                    const statsDiv = document.getElementById('admin-stats');
+                    statsDiv.innerHTML = `
+                        <div>
+                            <h4>${projects.length}</h4>
+                            <small>Total Projects</small>
+                        </div>
+                        <div>
+                            <h4>${projects.filter(p => p.status === 'ongoing').length}</h4>
+                            <small>Active Projects</small>
+                        </div>
+                        <div>
+                            <h4>${projects.filter(p => p.status === 'delayed').length}</h4>
+                            <small>Delayed</small>
+                        </div>
+                        <div>
+                            <h4>${projects.reduce((sum, p) => sum + p.total_budget, 0).toLocaleString()}</h4>
+                            <small>Total Budget (₹)</small>
+                        </div>
+                    `;
+                    
+                    // Load projects stats
+                    const projectsStatsDiv = document.getElementById('projects-stats');
+                    projectsStatsDiv.innerHTML = `
+                        <small>
+                            <strong>By Status:</strong><br>
+                            Soon: ${projects.filter(p => p.status === 'soon').length}<br>
+                            Ongoing: ${projects.filter(p => p.status === 'ongoing').length}<br>
+                            Completed: ${projects.filter(p => p.status === 'completed').length}<br>
+                            Delayed: ${projects.filter(p => p.status === 'delayed').length}
+                        </small>
+                    `;
+                    
+                    // Try to load verification queue
+                    try {
+                        const verificationData = await api.verification.getVerifiedCitizenship();
+                        const queueDiv = document.getElementById('verification-queue');
+                        queueDiv.innerHTML = `
+                            <p>
+                                <strong>Latest Submission:</strong><br>
+                                Phone: ${verificationData.phone}<br>
+                                ID: ${verificationData.id}
+                            </p>
+                            <a href="/admin/verify-users.html" role="button">Review All →</a>
+                        `;
+                    } catch (error) {
+                        document.getElementById('verification-queue').innerHTML = 
+                            '<p>No pending verifications</p>';
+                    }
+                    
+                    // Load recent issues
+                    try {
+                        // Get issues from all projects
+                        let allIssues = [];
+                        for (const project of projects.slice(0, 5)) {
+                            try {
+                                const issues = await api.issues.getProjectIssues(project.id);
+                                issues.forEach(issue => {
+                                    issue.projectTitle = project.title;
+                                    allIssues.push(issue);
+                                });
+                            } catch (error) {
+                                // Skip projects with no issues
+                            }
+                        }
+                        
+                        const issuesDiv = document.getElementById('issues-management');
+                        if (allIssues.length > 0) {
+                            let html = '<ul>';
+                            allIssues.slice(0, 3).forEach(issue => {
+                                html += `
+                                    <li>
+                                        ${shared.getStatusBadge(issue.status)}
+                                        <a href="/projects/view.html?id=${issue.project_id}">
+                                            ${issue.reason.substring(0, 50)}...
+                                        </a>
+                                        <br>
+                                        <small>${issue.projectTitle}</small>
+                                    </li>
+                                `;
+                            });
+                            html += '</ul>';
+                            if (allIssues.length > 3) {
+                                html += '<a href="/projects/issues/list.html">View All Issues →</a>';
+                            }
+                            issuesDiv.innerHTML = html;
+                        } else {
+                            issuesDiv.innerHTML = '<p>No issues reported</p>';
+                        }
+                    } catch (error) {
+                        console.error('Error loading issues:', error);
+                        document.getElementById('issues-management').innerHTML = 
+                            '<p>Error loading issues</p>';
+                    }
+                    
+                    // Show recent activity (simplified)
+                    document.getElementById('recent-activity').innerHTML = `
+                        <p>
+                            <strong>Last Login:</strong> Just now<br>
+                            <strong>Total Projects Managed:</strong> ${projects.length}<br>
+                            <strong>System Status:</strong> <span class="success">Operational</span>
+                        </p>
+                    `;
+                    
+                } catch (error) {
+                    console.error('Error loading admin dashboard:', error);
+                    document.getElementById('admin-stats').innerHTML = 
+                        '<p class="secondary">Error loading statistics</p>';
+                }
+            }
+        </script>
+        
+        <style>
+            h4 {
+                margin: 0;
+                font-size: 1.5rem;
+                color: var(--primary);
+            }
+            
+            .grid > div > article {
+                margin-bottom: 1.5rem;
+            }
+        </style>
+    </main>
+</body>
+</html>

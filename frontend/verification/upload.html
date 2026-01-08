@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Citizenship - Verification</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/router.js"></script>
+    <style>
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin: 1rem 0;
+        }
+        
+        .upload-area.drag-over {
+            border-color: var(--primary);
+            background: #e7f1ff;
+            transform: scale(1.02);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #e7f1ff;
+        }
+        
+        .preview-container {
+            margin-top: 2rem;
+            display: none;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .requirements {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .status-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .status-success {
+            background: #d1e7dd;
+            border: 1px solid #badbcc;
+            color: #0f5132;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c2c7;
+            color: #842029;
+        }
+        
+        .status-info {
+            background: #cff4fc;
+            border: 1px solid #b6effb;
+            color: #055160;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+            display: none;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .uploading {
+            animation: pulse 1.5s infinite;
+        }
+        
+        .verification-steps {
+            counter-reset: step-counter;
+            margin: 2rem 0;
+        }
+        
+        .step {
+            position: relative;
+            padding-left: 3rem;
+            margin-bottom: 1.5rem;
+            min-height: 2.5rem;
+        }
+        
+        .step::before {
+            counter-increment: step-counter;
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .step.completed::before {
+            background: var(--success);
+            content: '✓';
+        }
+        
+        .step.active::before {
+            background: var(--primary);
+            box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.2);
+        }
+        
+        .step.pending::before {
+            background: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li><strong>Citizenship Verification</strong></li>
+                <li><span data-user-info="phone"></span></li>
+            </ul>
+            <ul>
+                <li><a href="/dashboard.html">← Dashboard</a></li>
+                <li><a href="/index.html">Home</a></li>
+                <li><button onclick="shared.logout()">Logout</button></li>
+            </ul>
+        </nav>
+        
+        <!-- Page Header -->
+        <article>
+            <header>
+                <h2>Citizenship Document Upload</h2>
+                <p>Upload your citizenship document for verification. This is required to participate as a contractor.</p>
+            </header>
+            
+            <!-- Verification Status -->
+            <div id="verification-status">
+                <!-- Will be populated by JavaScript -->
+            </div>
+            
+            <!-- Verification Steps -->
+            <div class="verification-steps">
+                <div class="step active" id="step-upload">
+                    <h4 style="margin: 0;">Upload Document</h4>
+                    <p>Upload a clear photo of your citizenship document</p>
+                </div>
+                
+                <div class="step pending" id="step-review">
+                    <h4 style="margin: 0;">Admin Review</h4>
+                    <p>Our team will verify your document (24-48 hours)</p>
+                </div>
+                
+                <div class="step pending" id="step-complete">
+                    <h4 style="margin: 0;">Verification Complete</h4>
+                    <p>You'll be notified once verified</p>
+                </div>
+            </div>
+        </article>
+        
+        <!-- Upload Section (only show if not verified) -->
+        <div id="upload-section">
+            <article>
+                <header>
+                    <h3>Upload Your Document</h3>
+                </header>
+                
+                <!-- Requirements -->
+                <div class="requirements">
+                    <h5>Requirements:</h5>
+                    <ul>
+                        <li>File must be <strong>JPG or PNG</strong> format</li>
+                        <li>Maximum file size: <strong>1 MB</strong></li>
+                        <li>Document must be <strong>clearly visible</strong></li>
+                        <li>All details should be <strong>legible</strong></li>
+                        <li>No blurry or cropped images</li>
+                    </ul>
+                </div>
+                
+                <!-- Upload Area -->
+                <div class="upload-area" id="drop-area">
+                    <div id="upload-icon">📁</div>
+                    <h3 id="upload-text">Drag & Drop your file here</h3>
+                    <p id="upload-subtext">or click to browse files</p>
+                    <input type="file" id="file-input" accept=".jpg,.jpeg,.png" style="display: none;">
+                    <p><small>Supported: JPG, PNG (Max: 1MB)</small></p>
+                </div>
+                
+                <!-- File Preview -->
+                <div class="preview-container" id="preview-container">
+                    <h4>Document Preview</h4>
+                    <div id="image-preview"></div>
+                    <div class="grid">
+                        <div>
+                            <p><strong>File:</strong> <span id="file-name">-</span></p>
+                            <p><strong>Size:</strong> <span id="file-size">-</span></p>
+                            <p><strong>Type:</strong> <span id="file-type">-</span></p>
+                        </div>
+                        <div style="text-align: right;">
+                            <button onclick="clearFile()" class="secondary">Remove</button>
+                            <button onclick="uploadFile()" id="upload-btn" class="primary">Upload Document</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                
+                <!-- Status Messages -->
+                <div id="status-message"></div>
+                
+                <!-- Upload Tips -->
+                <article class="secondary">
+                    <header>
+                        <h5>Tips for a successful upload:</h5>
+                    </header>
+                    <div class="grid">
+                        <div>
+                            <strong>Do:</strong>
+                            <ul>
+                                <li>Take photo in good lighting</li>
+                                <li>Place document on flat surface</li>
+                                <li>Ensure all corners are visible</li>
+                                <li>Check details are readable</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Don't:</strong>
+                            <ul>
+                                <li>Upload blurry photos</li>
+                                <li>Edit or filter the image</li>
+                                <li>Cover any important details</li>
+                                <li>Upload irrelevant files</li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+            </article>
+            
+            <!-- Privacy Notice -->
+            <article class="secondary">
+                <header>
+                    <h5>Privacy & Security</h5>
+                </header>
+                <p>
+                    <small>
+                        Your citizenship document is securely stored and only accessible to authorized administrators. 
+                        We use encryption to protect your data. The document will be deleted after verification is complete.
+                        By uploading, you confirm this is your genuine citizenship document.
+                    </small>
+                </p>
+            </article>
+        </div>
+        
+        <!-- Already Verified Section -->
+        <div id="already-verified" style="display: none;">
+            <article class="primary">
+                <header>
+                    <h3>✅ Already Verified!</h3>
+                </header>
+                <p>
+                    Your citizenship has already been verified. You can now participate as a contractor in projects.
+                </p>
+                <footer>
+                    <a href="/dashboard.html" role="button">Go to Dashboard</a>
+                    <a href="/projects/list.html" role="button" class="secondary">Browse Projects</a>
+                </footer>
+            </article>
+            
+            <article>
+                <header>
+                    <h4>Your Verification Details</h4>
+                </header>
+                <div id="verification-details">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </article>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                // Check authentication
+                const currentUser = shared.checkAuth();
+                if (!currentUser) return;
+                
+                // Check verification status
+                await checkVerificationStatus(currentUser);
+                
+                // Setup upload area
+                setupUploadArea();
+            });
+            
+            async function checkVerificationStatus(user) {
+                const statusDiv = document.getElementById('verification-status');
+                const uploadSection = document.getElementById('upload-section');
+                const alreadyVerified = document.getElementById('already-verified');
+                
+                if (user.citizenship_num) {
+                    // User is already verified
+                    statusDiv.innerHTML = `
+                        <article class="primary">
+                            <h3>✅ Citizenship Verified</h3>
+                            <p>Your citizenship was verified on ${user.updated_at ? shared.formatDate(user.updated_at) : 'previous date'}.</p>
+                        </article>
+                    `;
+                    
+                    uploadSection.style.display = 'none';
+                    alreadyVerified.style.display = 'block';
+                    
+                    // Show verification details
+                    document.getElementById('verification-details').innerHTML = `
+                        <div class="grid">
+                            <div>
+                                <p><strong>Citizenship Number:</strong><br>${user.citizenship_num}</p>
+                                <p><strong>District:</strong><br>${user.district || 'Not specified'}</p>
+                            </div>
+                            <div>
+                                <p><strong>City/Municipality:</strong><br>${user.city || 'Not specified'}</p>
+                                <p><strong>Ward Number:</strong><br>${user.ward_num || 'Not specified'}</p>
+                            </div>
+                        </div>
+                        <p><small>Verification ID: ${user.id || 'N/A'}</small></p>
+                    `;
+                    
+                    // Update steps
+                    document.getElementById('step-upload').className = 'step completed';
+                    document.getElementById('step-review').className = 'step completed';
+                    document.getElementById('step-complete').className = 'step active';
+                    
+                } else {
+                    // User needs verification
+                    statusDiv.innerHTML = `
+                        <article class="secondary">
+                            <h3>⚠️ Verification Required</h3>
+                            <p>You need to verify your citizenship to participate as a contractor in projects.</p>
+                        </article>
+                    `;
+                    
+                    uploadSection.style.display = 'block';
+                    alreadyVerified.style.display = 'none';
+                    
+                    // Check if user has pending upload
+                    checkPendingUpload(user);
+                }
+            }
+            
+            async function checkPendingUpload(user) {
+                try {
+                    const api = shared.getAPI();
+                    // Try to check for pending verification
+                    // Note: You might need to implement this endpoint
+                    
+                    // For now, just show the upload form
+                    
+                } catch (error) {
+                    console.log('No pending upload found');
+                }
+            }
+            
+            function setupUploadArea() {
+                const dropArea = document.getElementById('drop-area');
+                const fileInput = document.getElementById('file-input');
+                const uploadText = document.getElementById('upload-text');
+                const uploadSubtext = document.getElementById('upload-subtext');
+                const uploadIcon = document.getElementById('upload-icon');
+                
+                // Click to select file
+                dropArea.addEventListener('click', () => fileInput.click());
+                
+                // File input change
+                fileInput.addEventListener('change', handleFileSelect);
+                
+                // Drag and drop events
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropArea.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropArea.addEventListener(eventName, highlight, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropArea.addEventistener(eventName, unhighlight, false);
+                });
+                
+                function highlight() {
+                    dropArea.classList.add('drag-over');
+                    uploadText.textContent = 'Drop file to upload';
+                    uploadSubtext.textContent = 'Release to upload your document';
+                    uploadIcon.textContent = '⬇️';
+                }
+                
+                function unhighlight() {
+                    dropArea.classList.remove('drag-over');
+                    uploadText.textContent = 'Drag & Drop your file here';
+                    uploadSubtext.textContent = 'or click to browse files';
+                    uploadIcon.textContent = '📁';
+                }
+                
+                // Handle dropped files
+                dropArea.addEventListener('drop', handleDrop, false);
+                
+                function handleDrop(e) {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    
+                    if (files.length > 0) {
+                        handleFiles(files[0]);
+                    }
+                }
+            }
+            
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    handleFiles(files[0]);
+                }
+            }
+            
+            function handleFiles(file) {
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                if (!validTypes.includes(file.type)) {
+                    showStatus('Please upload a JPG or PNG image file', 'error');
+                    return;
+                }
+                
+                // Validate file size (1MB = 1048576 bytes)
+                if (file.size > 1048576) {
+                    showStatus('File size must be less than 1MB', 'error');
+                    return;
+                }
+                
+                // Show preview
+                showPreview(file);
+                
+                // Update steps
+                document.getElementById('step-upload').className = 'step completed';
+                document.getElementById('step-review').className = 'step active';
+                document.getElementById('step-complete').className = 'step pending';
+            }
+            
+            function showPreview(file) {
+                const previewContainer = document.getElementById('preview-container');
+                const imagePreview = document.getElementById('image-preview');
+                
+                // Clear previous preview
+                imagePreview.innerHTML = '';
+                
+                // Show file info
+                document.getElementById('file-name').textContent = file.name;
+                document.getElementById('file-size').textContent = formatFileSize(file.size);
+                document.getElementById('file-type').textContent = file.type.split('/')[1].toUpperCase();
+                
+                // Create image preview
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-image';
+                        img.alt = 'Document preview';
+                        imagePreview.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                // Show preview container
+                previewContainer.style.display = 'block';
+                
+                // Scroll to preview
+                previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            function clearFile() {
+                const fileInput = document.getElementById('file-input');
+                const previewContainer = document.getElementById('preview-container');
+                const statusMessage = document.getElementById('status-message');
+                
+                fileInput.value = '';
+                previewContainer.style.display = 'none';
+                statusMessage.innerHTML = '';
+                
+                // Reset steps
+                document.getElementById('step-upload').className = 'step active';
+                document.getElementById('step-review').className = 'step pending';
+                document.getElementById('step-complete').className = 'step pending';
+                
+                showStatus('File removed. You can select another file.', 'info');
+            }
+            
+            async function uploadFile() {
+                const fileInput = document.getElementById('file-input');
+                const uploadBtn = document.getElementById('upload-btn');
+                const progressBar = document.getElementById('progress-bar');
+                const progressFill = document.getElementById('progress-fill');
+                
+                if (!fileInput.files.length) {
+                    showStatus('Please select a file first', 'error');
+                    return;
+                }
+                
+                const file = fileInput.files[0];
+                const currentUser = shared.checkAuth();
+                
+                // Disable upload button and show progress
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = 'Uploading...';
+                uploadBtn.classList.add('uploading');
+                progressBar.style.display = 'block';
+                
+                // Simulate progress (in real implementation, use actual upload progress)
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 10;
+                    progressFill.style.width = `${progress}%`;
+                    
+                    if (progress >= 90) {
+                        clearInterval(progressInterval);
+                    }
+                }, 200);
+                
+                try {
+                    const api = shared.getAPI();
+                    
+                    // Upload the file
+                    const result = await api.verification.uploadCitizenship(file, currentUser.phone);
+                    
+                    // Complete progress
+                    clearInterval(progressInterval);
+                    progressFill.style.width = '100%';
+                    
+                    // Show success message
+                    showStatus(`
+                        Document uploaded successfully!<br>
+                        <strong>File:</strong> ${result.filename}<br>
+                        <small>Your document is now under review. You'll be notified once verified.</small>
+                    `, 'success');
+                    
+                    // Update UI
+                    uploadBtn.textContent = 'Uploaded ✓';
+                    uploadBtn.classList.remove('uploading');
+                    
+                    // Update steps
+                    document.getElementById('step-upload').className = 'step completed';
+                    document.getElementById('step-review').className = 'step completed';
+                    document.getElementById('step-complete').className = 'step active';
+                    
+                    // Update user status after a delay
+                    setTimeout(async () => {
+                        try {
+                            const updatedUser = await api.auth.verifyUser();
+                            localStorage.setItem('current_user', JSON.stringify(updatedUser));
+                            checkVerificationStatus(updatedUser);
+                        } catch (error) {
+                            console.error('Error updating user status:', error);
+                        }
+                    }, 2000);
+                    
+                } catch (error) {
+                    clearInterval(progressInterval);
+                    showStatus(`Upload failed: ${error.message}`, 'error');
+                    
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload Document';
+                    uploadBtn.classList.remove('uploading');
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }
+            }
+            
+            function showStatus(message, type) {
+                const statusDiv = document.getElementById('status-message');
+                statusDiv.innerHTML = `
+                    <div class="status-message status-${type}">
+                        ${message}
+                    </div>
+                `;
+                
+                // Scroll to status message
+                statusDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // Auto-hide info messages after 5 seconds
+                if (type === 'info') {
+                    setTimeout(() => {
+                        statusDiv.innerHTML = '';
+                    }, 5000);
+                }
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Add CSS for primary color RGB variable
+            document.head.insertAdjacentHTML('beforeend', `
+                <style>
+                    :root {
+                        --primary-rgb: 0, 123, 255;
+                        --success-rgb: 40, 167, 69;
+                    }
+                </style>
+            `);
+        </script>
+    </main>
+</body>
+</html>

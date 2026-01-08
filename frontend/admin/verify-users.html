@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Users - Admin</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li><strong>Verify Users</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/admin/dashboard.html">← Admin Dashboard</a></li>
+                <li><a href="/admin/users.html">Manage Users</a></li>
+                <li><button onclick="shared.logout()">Logout</button></li>
+            </ul>
+        </nav>
+        
+        <article>
+            <header>
+                <h3>Citizenship Verification Queue</h3>
+                <p>Review and verify user citizenship documents</p>
+            </header>
+            
+            <div id="verification-queue">
+                <p>Loading verification requests...</p>
+            </div>
+        </article>
+        
+        <!-- Current Verification in Progress -->
+        <article id="current-verification" style="display: none;">
+            <header>
+                <h3>Current Verification</h3>
+            </header>
+            
+            <div class="grid">
+                <div>
+                    <h4 id="current-user-phone"></h4>
+                    <p id="current-user-info"></p>
+                </div>
+                <div id="citizenship-image-container">
+                    <p>Loading citizenship image...</p>
+                </div>
+            </div>
+            
+            <form id="verification-form">
+                <input type="hidden" id="verify-phone">
+                
+                <h4>Verification Details</h4>
+                
+                <div class="grid">
+                    <label for="citizenship_num">
+                        Citizenship Number
+                        <input type="text" id="citizenship_num" name="citizenship_num" required>
+                    </label>
+                    
+                    <label for="district">
+                        District
+                        <input type="text" id="district" name="district" required>
+                    </label>
+                    
+                    <label for="city">
+                        City/Municipality
+                        <input type="text" id="city" name="city" required>
+                    </label>
+                    
+                    <label for="ward_num">
+                        Ward Number
+                        <input type="number" id="ward_num" name="ward_num" min="1" required>
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <div>
+                        <button type="button" onclick="rejectVerification()" class="secondary">
+                            Reject
+                        </button>
+                    </div>
+                    <div>
+                        <button type="submit" id="verify-btn" class="primary">
+                            Approve & Verify
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            <div id="verification-message"></div>
+        </article>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Check if user is admin
+                if (!shared.isAdmin()) {
+                    alert('Unauthorized access. Redirecting to user dashboard.');
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+                
+                loadVerificationQueue();
+                
+                // Setup verification form
+                const form = document.getElementById('verification-form');
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const phone = document.getElementById('verify-phone').value;
+                    const messageDiv = document.getElementById('verification-message');
+                    const button = document.getElementById('verify-btn');
+                    
+                    const verificationData = {
+                        citizenship_num: document.getElementById('citizenship_num').value.trim(),
+                        district: document.getElementById('district').value.trim(),
+                        city: document.getElementById('city').value.trim(),
+                        ward_num: parseInt(document.getElementById('ward_num').value)
+                    };
+                    
+                    button.disabled = true;
+                    button.textContent = 'Processing...';
+                    
+                    try {
+                        const api = shared.getAPI();
+                        const verifiedUser = await api.verification.verifyIdentity(phone, verificationData);
+                        
+                        showMessage(messageDiv, 
+                            `User ${verifiedUser.name || verifiedUser.phone} verified successfully!`, 
+                            'success');
+                        
+                        // Hide current verification and reload queue
+                        setTimeout(() => {
+                            document.getElementById('current-verification').style.display = 'none';
+                            form.reset();
+                            loadVerificationQueue();
+                        }, 2000);
+                        
+                    } catch (error) {
+                        showMessage(messageDiv, `Error: ${error.message}`, 'error');
+                    } finally {
+                        button.disabled = false;
+                        button.textContent = 'Approve & Verify';
+                    }
+                });
+            });
+            
+            async function loadVerificationQueue() {
+                try {
+                    const api = shared.getAPI();
+                    const verificationData = await api.verification.getVerifiedCitizenship();
+                    
+                    const queueDiv = document.getElementById('verification-queue');
+                    
+                    if (verificationData && verificationData.phone) {
+                        queueDiv.innerHTML = `
+                            <div class="grid">
+                                <div>
+                                    <article>
+                                        <header>
+                                            <h4>Pending Verification</h4>
+                                        </header>
+                                        <p>
+                                            <strong>Name:</strong> ${verificationData.name || 'Not provided'}<br>
+                                            <strong>Phone:</strong> ${verificationData.phone}<br>
+                                            <strong>Document ID:</strong> ${verificationData.id}<br>
+                                            <strong>Status:</strong> ${verificationData.status || 'pending'}
+                                        </p>
+                                        <footer>
+                                            <button onclick="startVerification(
+                                                '${verificationData.phone}', 
+                                                '${verificationData.name || verificationData.phone}', 
+                                                '${verificationData.image_data}', 
+                                                '${verificationData.id}'
+                                            )" class="primary">
+                                                Start Verification
+                                            </button>
+                                        </footer>
+                                    </article>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        queueDiv.innerHTML = `
+                            <article class="secondary">
+                                <p>No pending verification requests.</p>
+                                <small>Users who upload citizenship documents will appear here.</small>
+                            </article>
+                        `;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading verification queue:', error);
+                    document.getElementById('verification-queue').innerHTML = `
+                        <article class="secondary">
+                            <p>Error loading verification queue: ${error.message}</p>
+                            <small>Make sure the verification endpoint is working.</small>
+                        </article>
+                    `;
+                }
+            }
+            
+            async function startVerification(phone, name, image_data, docId) {
+                try {
+                    // Show the verification form
+                    const currentVerification = document.getElementById('current-verification');
+                    currentVerification.style.display = 'block';
+                    
+                    // Set the phone in the form
+                    document.getElementById('verify-phone').value = phone;
+                    document.getElementById('current-user-phone').textContent = `Verifying: ${name}`;
+                    
+                    // Clear previous image
+                    const imageContainer = document.getElementById('citizenship-image-container');
+                    imageContainer.innerHTML = '<p>Loading image...</p>';
+                    
+                    // Check if image_data exists
+                    if (!image_data) {
+                        imageContainer.innerHTML = '<p class="secondary">No image data available</p>';
+                        return;
+                    }
+                    
+                    // Try different image formats
+                    const imageFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                    
+                    const img = document.createElement('img');
+                    img.alt = `Citizenship document for ${name} (${phone})`;
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '400px';
+                    img.style.objectFit = 'contain';
+                    img.style.border = '2px solid #333';
+                    img.style.borderRadius = '8px';
+                    img.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                    
+                    // Try to load image
+                    let imageLoaded = false;
+                    for (const format of imageFormats) {
+                        img.src = `data:${format};base64,${image_data}`;
+                        
+                        // Check if image loads successfully
+                        img.onload = function() {
+                            imageLoaded = true;
+                            console.log(`Image loaded with format: ${format}`);
+                        };
+                        
+                        img.onerror = function() {
+                            console.log(`Failed to load with format: ${format}`);
+                        };
+                        
+                        // Give it a moment to try loading
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        if (imageLoaded) break;
+                    }
+                    
+                    // Clear and add image
+                    imageContainer.innerHTML = '';
+                    imageContainer.appendChild(img);
+                    
+                    // Add download link
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = `data:image/png;base64,${image_data}`;
+                    downloadLink.download = `citizenship_${phone}.png`;
+                    downloadLink.className = 'secondary';
+                    downloadLink.style.display = 'block';
+                    downloadLink.style.marginTop = '1rem';
+                    
+                    imageContainer.appendChild(downloadLink);
+                    
+                    // Reset form
+                    document.getElementById('verification-form').reset();
+                    document.getElementById('verification-message').innerHTML = '';
+                    
+                    // Scroll to verification form
+                    currentVerification.scrollIntoView({ behavior: 'smooth' });
+                    
+                } catch (error) {
+                    console.error('Error in startVerification:', error);
+                    alert(`Error: ${error.message}`);
+                }
+            }
+            
+            async function rejectVerification() {
+                const phone = document.getElementById('verify-phone').value;
+                
+                if (!confirm(`Reject verification for ${phone}?`)) {
+                    return;
+                }
+                
+                try {
+                    // Note: You'll need to implement a reject endpoint in your FastAPI
+                    // For now, just show a message
+                    showMessage(
+                        document.getElementById('verification-message'),
+                        `Verification for ${phone} rejected. (Implement reject endpoint)`,
+                        'error'
+                    );
+                    
+                    // Hide form and reload queue after delay
+                    setTimeout(() => {
+                        document.getElementById('current-verification').style.display = 'none';
+                        loadVerificationQueue();
+                    }, 2000);
+                    
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+            
+            function showMessage(element, text, type) {
+                element.innerHTML = `
+                    <article class="${type === 'error' ? 'secondary' : 'primary'}">
+                        <p>${text}</p>
+                    </article>
+                `;
+            }
+        </script>
+        
+        <style>
+            #citizenship-image-container {
+                min-height: 200px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 2px dashed #ccc;
+                border-radius: 8px;
+            }
+            
+            .grid > div > article {
+                margin-bottom: 1rem;
+            }
+        </style>
+    </main>
+</body>
+</html>

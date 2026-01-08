@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Milestones</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/router.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --light-bg: #f8fafc;
+        }
+        
+        body {
+            background: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            padding: 1rem;
+        }
+        
+        nav {
+            background: white;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .project-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-soon { color: #f59e0b; }
+        .stat-ongoing { color: #2563eb; }
+        .stat-completed { color: #10b981; }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .milestones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .milestone-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid #d1d5db;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .milestone-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        
+        .milestone-card.completed {
+            border-left-color: var(--success);
+            background: linear-gradient(to right, #ecfdf5, white);
+        }
+        
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .milestone-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+        
+        .milestone-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .milestone-details {
+            color: #6b7280;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .milestone-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .photos-preview {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .photo-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid,
+            .milestones-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li>
+                    <i class="fas fa-tasks" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    <strong>Manage Milestones</strong>
+                </li>
+            </ul>
+            <ul>
+                <li>
+                    <a href="/dashboard.html" class="btn-secondary" style="text-decoration: none;">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <button onclick="goBack()" class="btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Project Header -->
+        <div class="project-header">
+            <h1 id="project-title" style="margin: 0 0 0.5rem 0;">Loading Project...</h1>
+            <p style="opacity: 0.9; margin: 0;" id="project-location">--</p>
+        </div>
+        
+        <!-- Milestone Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value stat-soon" id="total-milestones">0</div>
+                <div class="stat-label">Total Milestones</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-ongoing" id="completed-milestones">0</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value stat-completed" id="completion-rate">0%</div>
+                <div class="stat-label">Completion Rate</div>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div style="margin: 1.5rem 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #6b7280;">Overall Progress</span>
+                <span style="font-weight: 500;" id="progress-text">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <!-- Update Form -->
+        <div class="form-card">
+            <h2 style="margin-top: 0; color: #1f2937;">
+                <i class="fas fa-edit"></i> Update Milestone
+            </h2>
+            
+            <form id="update-milestone-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="milestone-select">
+                            <i class="fas fa-flag"></i> Select Milestone
+                        </label>
+                        <select id="milestone-select" required>
+                            <option value="">Choose a milestone...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="milestone-status">
+                            <i class="fas fa-check-circle"></i> Status
+                        </label>
+                        <select id="milestone-status">
+                            <option value="false">Pending</option>
+                            <option value="true">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="milestone-photos">
+                        <i class="fas fa-camera"></i> Photo URLs (Optional)
+                    </label>
+                    <textarea 
+                        id="milestone-photos" 
+                        rows="3" 
+                        placeholder="Enter photo URLs (comma separated)&#10;Example:&#10;https://example.com/photo1.jpg, https://example.com/photo2.jpg"
+                    ></textarea>
+                    <small style="color: #6b7280;">Add links to photos as proof of completion</small>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="button" onclick="resetForm()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                    <button type="submit" id="update-btn" class="btn-primary">
+                         Update Milestone
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Milestones List -->
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; color: #1f2937;">
+                    <i class="fas fa-list-check"></i> All Milestones
+                </h2>
+                <button onclick="refreshMilestones()" class="btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <div id="milestones-list">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                    <p>Loading milestones...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            if (!projectId) {
+                showAlert('No project specified', 'error');
+                setTimeout(() => window.location.href = '/projects/list.html', 2000);
+                return;
+            }
+
+            loadProjectAndMilestones(projectId);
+            
+            const form = document.getElementById('update-milestone-form');
+            form.addEventListener('submit', updateMilestone);
+        });
+
+        let currentProject = null;
+        let currentMilestones = [];
+
+        async function loadProjectAndMilestones(projectId) {
+            try {
+                const user = shared.checkAuth();
+                if (!user) return;
+                
+                const api = shared.getAPI();
+                
+                // Get project
+                currentProject = await api.projects.getProject(projectId);
+                
+                // Check if user is contractor
+                if (currentProject.contractor !== user.phone) {
+                    showAlert('Access denied', 'error');
+                    setTimeout(() => window.location.href = '/projects/view.html?id=' + projectId, 2000);
+                    return;
+                }
+
+                // Update header
+                document.getElementById('project-title').textContent = currentProject.title;
+                document.getElementById('project-location').textContent = 
+                    `${currentProject.city}, ${currentProject.district} • Ward ${currentProject.ward_num}`;
+
+                // Load milestones
+                await loadMilestones(projectId);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error loading project: ' + error.message, 'error');
+                setTimeout(() => window.location.href = '/projects/list.html', 2000);
+            }
+        }
+
+        async function loadMilestones(projectId) {
+            try {
+                const api = shared.getAPI();
+                currentMilestones = await api.projects.listMilestones(projectId);
+                
+                updateMilestoneStats();
+                populateMilestoneSelect();
+                displayMilestones();
+
+            } catch (error) {
+                console.error('Error loading milestones:', error);
+                document.getElementById('milestones-list').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error Loading Milestones</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateMilestoneStats() {
+            const total = currentMilestones.length;
+            const completed = currentMilestones.filter(m => m.completed).length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            document.getElementById('total-milestones').textContent = total;
+            document.getElementById('completed-milestones').textContent = completed;
+            document.getElementById('completion-rate').textContent = percentage + '%';
+            document.getElementById('progress-text').textContent = percentage + '%';
+            document.getElementById('progress-fill').style.width = percentage + '%';
+        }
+
+        function populateMilestoneSelect() {
+            const select = document.getElementById('milestone-select');
+            select.innerHTML = '<option value="">Choose a milestone...</option>';
+            
+            currentMilestones.forEach(milestone => {
+                const option = document.createElement('option');
+                option.value = milestone.id;
+                
+                let text = milestone.description || `Milestone`;
+                if (milestone.completed) text += ' (Completed)';
+                if (milestone.due_date) {
+                    const dueDate = new Date(milestone.due_date);
+                    text += ` • Due: ${dueDate.toLocaleDateString()}`;
+                }
+                
+                option.textContent = text;
+                select.appendChild(option);
+            });
+        }
+
+        function displayMilestones() {
+            const container = document.getElementById('milestones-list');
+            
+            if (currentMilestones.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #666;">
+                        No milestones found
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            currentMilestones.forEach(milestone => {
+                const dueDate = milestone.due_date ? shared.formatDate(milestone.due_date) : 'No due date';
+                
+                html += `
+                    <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #eee; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <div style="color: #000000;" style="font-weight: 500;">${milestone.description || 'Milestone'}</div>
+                            <div style="color: ${milestone.completed ? '#28a745' : '#ffc107'}">
+                                ${milestone.completed ? '✓ Completed' : '○ Pending'}
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            <div>Due: ${dueDate}</div>
+                            ${milestone.photo_urls && milestone.photo_urls.length > 0 ? 
+                                `<div>${milestone.photo_urls.length} photos</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        async function updateMilestone(e) {
+            e.preventDefault();
+            
+            const milestoneId = document.getElementById('milestone-select').value;
+            const completed = document.getElementById('milestone-status').value === 'true';
+            const photosInput = document.getElementById('milestone-photos').value;
+
+            if (!milestoneId) {
+                showAlert('Please select a milestone', 'warning');
+                return;
+            }
+
+            // Process photo URLs
+            let photoUrls = [];
+            if (photosInput) {
+                // Split by comma or newline
+                photoUrls = photosInput.split(/[\n,]/)
+                    .map(url => url.trim())
+                    .filter(url => url && url.startsWith('http'));
+            }
+
+            const milestoneData = {
+                completed: completed,
+                completed_at: completed ? new Date().toISOString() : null,
+                photo_urls: photoUrls
+            };
+
+            const button = document.getElementById('update-btn');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const api = shared.getAPI();
+                await api.projects.updateMilestone(currentProject.id, milestoneId, milestoneData);
+                
+                showAlert('✓ Milestone updated successfully!', 'success');
+                resetForm();
+                await loadMilestones(currentProject.id);
+
+            } catch (error) {
+                showAlert('✗ Error: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-save"></i> Update Milestone';
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('update-milestone-form').reset();
+            document.getElementById('milestone-select').focus();
+        }
+
+        function refreshMilestones() {
+            if (currentProject) {
+                loadMilestones(currentProject.id);
+                showAlert('Refreshing milestones...', 'info');
+            }
+        }
+
+        function goBack() {
+            if (currentProject) {
+                window.location.href = `/projects/contractor/manage.html?id=${currentProject.id}`;
+            } else {
+                window.history.back();
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alert = document.createElement('div');
+            alert.className = 'alert-' + type;
+            alert.innerHTML = `
+                <div style="position: fixed; top: 20px; right: 20px; 
+                          padding: 1rem 1.5rem; border-radius: 8px; 
+                          background: ${type === 'success' ? '#d1fae5' : 
+                                      type === 'error' ? '#fee2e2' : 
+                                      type === 'warning' ? '#fef3c7' : '#dbeafe'};
+                          color: ${type === 'success' ? '#065f46' : 
+                                 type === 'error' ? '#991b1b' : 
+                                 type === 'warning' ? '#92400e' : '#1e40af'};
+                          border: 1px solid ${type === 'success' ? '#a7f3d0' : 
+                                            type === 'error' ? '#fecaca' : 
+                                            type === 'warning' ? '#fde68a' : '#bfdbfe'};
+                          z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <strong>${type === 'success' ? '✓ Success' : 
+                             type === 'error' ? '✗ Error' : 
+                             type === 'warning' ? '⚠ Warning' : 'ℹ Info'}</strong>
+                    <br>${message}
+                </div>
+            `;
+            
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Expenses - Contractor</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Project Expenses</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/dashboard.html">Dashboard</a></li>
+                <li><a href="#" onclick="goBack()">← Back</a></li>
+            </ul>
+        </nav>
+
+        <div id="project-header">
+            <h2>Loading Project...</h2>
+        </div>
+
+        <!-- Expense Summary -->
+        <article>
+            <h3>Expense Summary</h3>
+            <div id="expense-summary">
+                <p>Loading summary...</p>
+            </div>
+        </article>
+
+        <!-- Add Expense Form -->
+        <article>
+            <h3>Add New Expense</h3>
+            <form id="add-expense-form">
+                <div class="grid">
+                    <div>
+                        <label>
+                            Description
+                            <input type="text" id="expense-desc" required>
+                        </label>
+                    </div>
+                    <div>
+                        <label>
+                            Amount (₹)
+                            <input type="number" id="expense-amount" min="0" step="0.01" required>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div>
+                        <label>
+                            Date
+                            <input type="date" id="expense-date" required>
+                        </label>
+                    </div>
+                    <div>
+                        <label>
+                            Bill URL 
+                            <input type="url" id="expense-bill">
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn">Add Expense</button>
+            </form>
+        </article>
+
+        <!-- Expenses List -->
+        <article>
+            <header style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>All Expenses</h3>
+                <button onclick="refreshExpenses()">Refresh</button>
+            </header>
+            
+            <div id="expenses-list">
+                <p>Loading expenses...</p>
+            </div>
+        </article>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Set today's date as default
+                document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                
+                // Get project ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectId = urlParams.get('id');
+                
+                if (!projectId) {
+                    alert('No project specified');
+                    window.location.href = '/projects/list.html';
+                    return;
+                }
+
+                loadProjectAndExpenses(projectId);
+                
+                // Setup form
+                const form = document.getElementById('add-expense-form');
+                form.addEventListener('submit', addExpense);
+            });
+
+            let currentProject = null;
+            let currentExpenses = [];
+
+            async function loadProjectAndExpenses(projectId) {
+                try {
+                    const api = shared.getAPI();
+                    
+                    // Get project
+                    currentProject = await api.projects.getProject(projectId);
+                    
+                    // Check if user is contractor
+                    const user = shared.checkAuth();
+                    if (currentProject.contractor !== user.phone) {
+                        alert('Access denied');
+                        window.location.href = '/projects/view.html?id=' + projectId;
+                        return;
+                    }
+
+                    // Update header
+                    document.getElementById('project-header').innerHTML = `
+                        <h2>${currentProject.title}</h2>
+                        <p>Project Expenses Management</p>
+                    `;
+
+                    // Load expenses
+                    await loadExpenses(projectId);
+
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                    window.location.href = '/projects/list.html';
+                }
+            }
+
+            async function loadExpenses(projectId) {
+                try {
+                    const api = shared.getAPI();
+                    currentExpenses = await api.expenses.getProjectExpenditures(projectId);
+                    
+                    updateExpenseSummary();
+                    displayExpenses();
+
+                } catch (error) {
+                    console.error('Error loading expenses:', error);
+                    document.getElementById('expenses-list').innerHTML = 
+                        '<p>Error loading expenses</p>';
+                }
+            }
+
+            function updateExpenseSummary() {
+                const total = currentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                const count = currentExpenses.length;
+                const utilization = (total / currentProject.total_budget * 100).toFixed(1);
+
+                document.getElementById('expense-summary').innerHTML = `
+                    <div class="grid">
+                        <div>
+                            <h4>${shared.formatCurrency(total)}</h4>
+                            <p>Total Expenses</p>
+                        </div>
+                        <div>
+                            <h4>${count}</h4>
+                            <p>Number of Expenses</p>
+                        </div>
+                        <div>
+                            <h4>${utilization}%</h4>
+                            <p>Budget Used</p>
+                        </div>
+                        <div>
+                            <h4>${shared.formatCurrency(currentProject.total_budget - total)}</h4>
+                            <p>Remaining Budget</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function displayExpenses() {
+                const container = document.getElementById('expenses-list');
+                
+                if (currentExpenses.length === 0) {
+                    container.innerHTML = '<p>No expenses recorded yet.</p>';
+                    return;
+                }
+
+                let html = '<table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Bill</th></tr></thead><tbody>';
+                
+                currentExpenses.forEach(expense => {
+                    html += `
+                        <tr>
+                            <td>${shared.formatDate(expense.spent_on)}</td>
+                            <td>${expense.description || 'No description'}</td>
+                            <td><strong>${shared.formatCurrency(expense.amount)}</strong></td>
+                            <td>${expense.bill_url ? `<a href="${expense.bill_url}" target="_blank">View</a>` : '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            }
+
+            async function addExpense(e) {
+                e.preventDefault();
+                
+                const description = document.getElementById('expense-desc').value;
+                const amount = parseFloat(document.getElementById('expense-amount').value);
+                const date = document.getElementById('expense-date').value;
+                const billUrl = document.getElementById('expense-bill').value;
+
+                if (!description || !amount || !date) {
+                    alert('Please fill all required fields');
+                    return;
+                }
+
+                const expenseData = {
+                    project_id: currentProject.id,
+                    description: description,
+                    amount: amount,
+                    spent_on: date,
+                    bill_url: billUrl || undefined
+                };
+
+                const button = document.getElementById('submit-btn');
+                button.disabled = true;
+                button.textContent = 'Adding...';
+
+                try {
+                    const api = shared.getAPI();
+                    await api.expenses.createExpenditure(currentProject.id, expenseData);
+                    
+                    alert('Expense added successfully!');
+                    document.getElementById('add-expense-form').reset();
+                    document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                    
+                    await loadExpenses(currentProject.id);
+
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = 'Add Expense';
+                }
+            }
+
+            function refreshExpenses() {
+                document.getElementById('expenses-list').innerHTML = '<p>Refreshing...</p>';
+                loadExpenses(currentProject.id);
+            }
+
+            function goBack() {
+                window.history.back();
+            }
+        </script>
+
+        <style>
+            table {
+                width: 100%;
+                margin-top: 1rem;
+            }
+            
+            th {
+                text-align: left;
+                padding: 0.5rem;
+                border-bottom: 2px solid #dee2e6;
+            }
+            
+            td {
+                padding: 0.5rem;
+                border-bottom: 1px solid #dee2e6;
+            }
+            
+            .grid > div > h4 {
+                margin: 0;
+                color: var(--primary);
+            }
+        </style>
+    </main>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+</head>
+<body style="background: #ffffff;">
+    <main class="container" style="max-width: 1200px; padding: 2rem 1rem;">
+        <!-- Simple Header -->
+        <div style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h1 style="margin: 0; color: #3030e5;">Projects</h1>
+                <div>
+                    <a href="/dashboard.html" style="margin-right: 1rem; color: #000000; text-decoration: none;">Dashboard</a>
+                    <button onclick="shared.logout()" style="background: transparent; border: 1px solid #cccccc; color: #000000; padding: 0.5rem 1rem;">Logout</button>
+                </div>
+            </div>
+            <p style="color: #666666; margin: 0;">Browse all projects in the system</p>
+        </div>
+        
+        <!-- Stats -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+            <div style="background: #f8f8f8; padding: 1.5rem; border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: bold; color: #000000;" id="total-projects">0</div>
+                <div style="color: #666666;">Total Projects</div>
+            </div>
+            <div style="background: #f8f8f8; padding: 1.5rem; border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: bold; color: #000000;" id="active-projects">0</div>
+                <div style="color: #666666;">Active</div>
+            </div>
+            <div style="background: #f8f8f8; padding: 1.5rem; border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: bold; color: #000000;" id="pending-projects">0</div>
+                <div style="color: #666666;">Pending</div>
+            </div>
+        </div>
+        
+        <!-- Search -->
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-bottom: 2rem;">
+            <input type="search" id="search-input" placeholder="Search projects..." 
+                   style="color: #000000; padding: 1rem; border: 1px solid #dddddd; border-radius: 8px; background: #ffffff;">
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="resetFilters()" style="padding: 1rem; border: 1px solid #dddddd; background: #ffffff; color: #000000;">Clear</button>
+                <button onclick="refreshProjects()" style="padding: 1rem; background: #000000; color: #ffffff;">Refresh</button>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+            <select id="status-filter" style="color: #000000; padding: 1rem; border: 1px solid #dddddd; border-radius: 8px; background: #ffffff; min-width: 150px;">
+                <option value="">All Status</option>
+                <option value="soon">Soon</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+                <option value="delayed">Delayed</option>
+            </select>
+            <select id="type-filter" style="color: #000000; padding: 1rem; border: 1px solid #dddddd; border-radius: 8px; background: #ffffff; min-width: 150px;">
+                <option value="">All Types</option>
+                <option value="Gov-funded">Gov Funded</option>
+                <option value="Community-funded">Community Funded</option>
+            </select>
+        </div>
+        
+        <!-- Projects Grid - 2 columns -->
+        <div id="projects-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+            <div style="text-align: center; padding: 4rem; color: #666666; grid-column: 1 / -1;">
+                Loading projects...
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="empty-state" style="display: none; text-align: center; padding: 4rem; color: #666666;">
+            No projects found
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                // Check auth
+                if (!shared.checkAuth()) return;
+                
+                // Load projects
+                await loadProjects();
+                
+                // Setup filter event listeners
+                setupFilters();
+            });
+            
+            let allProjects = [];
+            let filteredProjects = [];
+            
+            async function loadProjects() {
+                try {
+                    const grid = document.getElementById('projects-grid');
+                    grid.innerHTML = `
+                        <div style="text-align: center; padding: 4rem; color: #666666; grid-column: 1 / -1;">
+                            Loading projects...
+                        </div>
+                    `;
+                    
+                    const api = shared.getAPI();
+                    allProjects = await api.projects.listProjects();
+                    
+                    // Update statistics
+                    updateStatistics(allProjects);
+                    
+                    // Apply initial filters
+                    applyFilters();
+                    
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    document.getElementById('projects-grid').innerHTML = `
+                        <div style="text-align: center; padding: 4rem; color: #cc0000; grid-column: 1 / -1;">
+                            Error loading projects
+                        </div>
+                    `;
+                }
+            }
+            
+            function updateStatistics(projects) {
+                const total = projects.length;
+                const active = projects.filter(p => p.status === 'ongoing').length;
+                const pending = projects.filter(p => p.status === 'soon').length;
+                
+                document.getElementById('total-projects').textContent = total;
+                document.getElementById('active-projects').textContent = active;
+                document.getElementById('pending-projects').textContent = pending;
+            }
+            
+            function setupFilters() {
+                const filters = ['search-input', 'status-filter', 'type-filter'];
+                filters.forEach(filterId => {
+                    const element = document.getElementById(filterId);
+                    if (element) {
+                        element.addEventListener('change', applyFilters);
+                        element.addEventListener('input', applyFilters);
+                    }
+                });
+            }
+            
+            function applyFilters() {
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                const statusFilter = document.getElementById('status-filter').value;
+                const typeFilter = document.getElementById('type-filter').value;
+                
+                filteredProjects = allProjects.filter(project => {
+                    const matchesSearch = !searchTerm || 
+                        project.title.toLowerCase().includes(searchTerm) ||
+                        (project.description && project.description.toLowerCase().includes(searchTerm));
+                    
+                    const matchesStatus = !statusFilter || project.status === statusFilter;
+                    const matchesType = !typeFilter || project.type === typeFilter;
+                    
+                    return matchesSearch && matchesStatus && matchesType;
+                });
+                
+                displayProjects(filteredProjects);
+                
+                // Show/hide empty state
+                const emptyState = document.getElementById('empty-state');
+                const grid = document.getElementById('projects-grid');
+                
+                if (filteredProjects.length === 0 && allProjects.length > 0) {
+                    emptyState.style.display = 'block';
+                    grid.style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    grid.style.display = 'grid';
+                }
+            }
+            
+            function displayProjects(projects) {
+                const grid = document.getElementById('projects-grid');
+                
+                if (projects.length === 0) {
+                    grid.innerHTML = '';
+                    return;
+                }
+                
+                let html = '';
+                
+                projects.forEach(project => {
+                    // Status color
+                    const statusColors = {
+                        'soon': '#ffb800',
+                        'ongoing': '#00a800',
+                        'completed': '#0066cc',
+                        'delayed': '#cc0000'
+                    };
+                    
+                    const statusColor = statusColors[project.status] || '#666666';
+                    
+                    // Budget utilization
+                    const utilization = project.total_budget > 0 ? 
+                        (project.budget_utilized / project.total_budget * 100).toFixed(0) : 0;
+                    
+                    html += `
+                        <div style="background: #ffffff; border: 1px solid #dddddd; border-radius: 8px; padding: 1.5rem; height: 100%;">
+                            <!-- Header -->
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                    <h3 style="margin: 0; color: #000000; font-size: 1.2rem;">${project.title}</h3>
+                                    <span style="color: ${statusColor}; font-weight: bold; text-transform: uppercase;">
+                                        ${project.status}
+                                    </span>
+                                </div>
+                                <div style="color: #666666; font-size: 0.9rem;">
+                                    ${project.type} • ${project.city}, ${project.district}
+                                </div>
+                            </div>
+                            
+                            <!-- Description -->
+                            <p style="color: #333333; margin: 0 0 1.5rem 0; line-height: 1.5; font-size: 0.95rem;">
+                                ${project.description ? 
+                                    (project.description.length > 150 ? 
+                                        project.description.substring(0, 150) + '...' : 
+                                        project.description) : 
+                                    'No description'}
+                            </p>
+                            
+                            <!-- Progress -->
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="color: #000000;">Budget: ${shared.formatCurrency(project.total_budget)}</span>
+                                    <span style="color: ${utilization > 80 ? '#cc0000' : utilization > 50 ? '#ffb800' : '#00a800'}">
+                                        ${utilization}% used
+                                    </span>
+                                </div>
+                                <div style="background: #eeeeee; height: 8px; border-radius: 4px;">
+                                    <div style="width: ${utilization}%; height: 100%; background: ${utilization > 80 ? '#cc0000' : utilization > 50 ? '#ffb800' : '#00a800'}; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Footer -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; color: #666666; font-size: 0.9rem;">
+                                <div>
+                                    Contractor: ${project.contractor}
+                                </div>
+                                <a href="/projects/view.html?id=${project.id}" 
+                                   style="padding: 0.5rem 1rem; background: #000000; color: #ffffff; text-decoration: none; border-radius: 4px;">
+                                    View
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                grid.innerHTML = html;
+            }
+            
+            function resetFilters() {
+                document.getElementById('search-input').value = '';
+                document.getElementById('status-filter').value = '';
+                document.getElementById('type-filter').value = '';
+                applyFilters();
+            }
+            
+            function refreshProjects() {
+                loadProjects();
+            }
+        </script>
+        
+        <style>
+            /* Clean, minimal styles */
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.5;
+            }
+            
+            h1, h2, h3, h4 {
+                font-weight: 600;
+            }
+            
+            button, input, select {
+                font-size: 1rem;
+            }
+            
+            button:hover {
+                opacity: 0.9;
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 1rem;
+                }
+                
+                #projects-grid {
+                    grid-template-columns: 1fr;
+                    gap: 1rem;
+                }
+                
+                .stats-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .filter-row {
+                    flex-direction: column;
+                }
+            }
+            
+        </style>
+    </main>
+</body>
+</html>

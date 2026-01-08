@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Issues</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Issues & Reports</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/projects/list.html">← Projects</a></li>
+                <li><a href="/projects/issues/create.html">➕ Report Issue</a></li>
+            </ul>
+        </nav>
+
+        <article>
+            <h2>All Reported Issues</h2>
+
+            <!-- Filter Options -->
+            <div class="grid">
+                <div>
+                    <select id="filter-project" onchange="filterIssues()">
+                        <option value="">All Projects</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="filter-status" onchange="filterIssues()">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="reviewed">Reviewed</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                <div>
+                    <button onclick="refreshIssues()">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Issues List -->
+            <div id="issues-container">
+                <p>Loading issues...</p>
+            </div>
+        </article>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                const user = shared.checkAuth();
+                if (!user) return;
+
+                await loadProjects();
+                await loadAllIssues();
+            });
+
+            let allProjects = [];
+            let allIssues = [];
+
+            async function loadProjects() {
+                try {
+                    const api = shared.getAPI();
+                    allProjects = await api.projects.listProjects();
+                    
+                    const select = document.getElementById('filter-project');
+                    allProjects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.id;
+                        option.textContent = project.title;
+                        select.appendChild(option);
+                    });
+
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+
+            async function loadAllIssues() {
+                try {
+                    const api = shared.getAPI();
+                    
+                    // Load issues from all projects
+                    allIssues = [];
+                    for (const project of allProjects) {
+                        try {
+                            const issues = await api.issues.getProjectIssues(project.id);
+                            issues.forEach(issue => {
+                                issue.projectTitle = project.title;
+                                issue.projectId = project.id;
+                                allIssues.push(issue);
+                            });
+                        } catch (error) {
+                            // Skip projects with no issues
+                        }
+                    }
+                    
+                    displayIssues(allIssues);
+
+                } catch (error) {
+                    console.error('Error loading issues:', error);
+                    document.getElementById('issues-container').innerHTML = 
+                        '<p>Error loading issues</p>';
+                }
+            }
+
+            function displayIssues(issues) {
+                const container = document.getElementById('issues-container');
+                
+                if (issues.length === 0) {
+                    container.innerHTML = '<p>No issues reported yet.</p>';
+                    return;
+                }
+
+                let html = '';
+                issues.forEach(issue => {
+                    const statusColor = issue.status === 'pending' ? 'warning' :
+                                       issue.status === 'reviewed' ? 'secondary' : 'success';
+                    
+                    html += `
+                        <article class="${statusColor}">
+                            <header>
+                                <h4>${issue.projectTitle}</h4>
+                                <p><strong>Status:</strong> ${issue.status.toUpperCase()}</p>
+                            </header>
+                            <p>${issue.reason}</p>
+                            <footer>
+                                <small>
+                                    Reported: ${shared.formatDate(issue.created_at)} | 
+                                    ${issue.anonymous ? 'Anonymous' : 'User: ' + (issue.user_id || 'Unknown')}
+                                </small>
+                                ${isAdmin() ? `
+                                    <button onclick="updateIssueStatus('${issue.id}')" class="small">
+                                        Update Status
+                                    </button>
+                                ` : ''}
+                            </footer>
+                        </article>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            function filterIssues() {
+                const projectId = document.getElementById('filter-project').value;
+                const status = document.getElementById('filter-status').value;
+
+                const filtered = allIssues.filter(issue => {
+                    const matchesProject = !projectId || issue.projectId === projectId;
+                    const matchesStatus = !status || issue.status === status;
+                    return matchesProject && matchesStatus;
+                });
+
+                displayIssues(filtered);
+            }
+
+            function refreshIssues() {
+                document.getElementById('issues-container').innerHTML = '<p>Refreshing...</p>';
+                loadAllIssues();
+            }
+
+            function isAdmin() {
+                const user = shared.checkAuth();
+                return user ? user.admin : false;
+            }
+
+            async function updateIssueStatus(issueId) {
+                const newStatus = prompt('Enter new status (pending/reviewed/resolved):', 'reviewed');
+                
+                if (newStatus && ['pending', 'reviewed', 'resolved'].includes(newStatus)) {
+                    try {
+                        const api = shared.getAPI();
+                        await api.issues.updateIssueStatus(issueId, { status: newStatus });
+                        
+                        alert('Status updated!');
+                        refreshIssues();
+                        
+                    } catch (error) {
+                        alert('Error: ' + error.message);
+                    }
+                }
+            }
+        </script>
+    </main>
+</body>
+</html>

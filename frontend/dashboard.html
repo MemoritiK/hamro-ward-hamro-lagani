@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-light: #4895ef;
+            --secondary: #3a0ca3;
+            --success: #4cc9f0;
+            --warning: #f72585;
+            --light-bg: #f8f9fa;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --card-radius: 12px;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        nav {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            padding: 1rem 1.5rem;
+        }
+
+        nav ul:first-child li:first-child {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        #user-name {
+            font-weight: 600;
+            color: var(--primary);
+            background: rgba(67, 97, 238, 0.1);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            margin-left: 1rem;
+        }
+
+        /* Profile Card */
+        .profile-card {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            margin-bottom: 2rem;
+            border-top: 4px solid var(--primary);
+        }
+
+        .profile-header {
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .profile-avatar {
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        .profile-body {
+            padding: 1.5rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-verified {
+            background: rgba(76, 201, 240, 0.15);
+            color: #4cc9f0;
+        }
+
+        .status-pending {
+            background: rgba(247, 37, 133, 0.15);
+            color: #f72585;
+        }
+
+        .status-admin {
+            background: rgba(58, 12, 163, 0.15);
+            color: var(--secondary);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: rgba(67, 97, 238, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+
+        .stat-content h3 {
+            margin: 0;
+            font-size: 2rem;
+            color: #333;
+        }
+
+        .stat-content p {
+            margin: 0.3rem 0 0 0;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        /* Quick Actions */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .action-card {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .action-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .action-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .action-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+
+        .action-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* Activity */
+        .activity-card {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .activity-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .activity-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .activity-item {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: background 0.2s ease;
+        }
+
+        .activity-item:hover {
+            background: #f9f9f9;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(67, 97, 238, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            margin: 0 0 0.3rem 0;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .activity-time {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            nav ul {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <!-- Header -->
+        <nav>
+            <ul>
+                <li><strong><i class="fas fa-chart-line"></i> Dashboard</strong></li>
+                <li id="user-name">Loading...</li>
+            </ul>
+            <ul>
+                <li><a href="/index.html" class="btn-secondary"><i class="fas fa-home"></i> Home</a></li>
+                <li><button onclick="shared.logout()" class="btn-primary"><i class="fas fa-sign-out-alt"></i> Logout</button></li>
+            </ul>
+        </nav>
+
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h2 style="margin: 0; font-size: 1.5rem;" id="profile-name">Loading...</h2>
+                    <p style="margin: 0.3rem 0 0 0; opacity: 0.9;" id="profile-role">User</p>
+                </div>
+            </div>
+            <div class="profile-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label"><i class="fas fa-phone"></i> Phone Number</span>
+                        <span class="info-value" id="profile-phone">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label"><i class="fas fa-map-marker-alt"></i> Location</span>
+                        <span class="info-value" id="profile-location">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label"><i class="fas fa-badge-check"></i> Verification Status</span>
+                        <span id="profile-verification">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label"><i class="fas fa-user-tag"></i> Account Type</span>
+                        <span id="profile-type">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card" onclick="window.location.href='/projects/list.html'">
+                <div class="stat-icon">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="total-projects">--</h3>
+                    <p>Active Projects</p>
+                </div>
+            </div>
+            <div class="stat-card" onclick="window.location.href='/projects/issues/list.html'">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="total-issues">--</h3>
+                    <p>Reported Issues</p>
+                </div>
+            </div>
+            <div class="stat-card" onclick="window.location.href='/verification/upload.html'">
+                <div class="stat-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <div id="verification-stat">--</div>
+                    <p>Account Security</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <h3 style="margin-bottom: 1rem; color: var(--secondary);"><i class="fas fa-bolt"></i> Quick Actions</h3>
+        <div class="actions-grid">
+            <div class="action-card" onclick="window.location.href='/projects/list.html'">
+                <div class="action-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h4>Browse Projects</h4>
+                <p>Explore ongoing and upcoming projects in your area</p>
+            </div>
+            <div class="action-card" onclick="window.location.href='/projects/issues/create.html'">
+                <div class="action-icon">
+                    <i class="fas fa-flag"></i>
+                </div>
+                <h4>Report Issue</h4>
+                <p>Report problems or concerns about any project</p>
+            </div>
+            <div class="action-card" onclick="window.location.href='/verification/upload.html'">
+                <div class="action-icon">
+                    <i class="fas fa-id-card"></i>
+                </div>
+                <h4>Verify ID</h4>
+                <p>Upload citizenship for account verification</p>
+            </div>
+            <div class="action-card" onclick="window.location.href='/projects/list.html?filter=my'">
+                <div class="action-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <h4>My Contributions</h4>
+                <p>View your project reports and issue submissions</p>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                const user = shared.checkAuth();
+                if (!user) {
+                    window.location.href = '/auth/login.html';
+                    return;
+                }
+        
+                await loadDashboard(user);
+            });
+        
+            async function loadDashboard(user) {
+                try {
+                    console.log('Loading dashboard for user:', user);
+                    
+                    // Update user info
+                    document.getElementById('user-name').textContent = user.name || user.phone;
+                    updateProfileInfo(user);
+                    
+                    // Load dashboard data
+                    await loadStats(user);
+                    
+                } catch (error) {
+                    console.error('Error in loadDashboard:', error);
+                    alert('Error loading dashboard. Please refresh the page.');
+                }
+            }
+        
+            function updateProfileInfo(user) {
+                // Update profile header
+                document.getElementById('profile-name').textContent = user.name || 'No Name Set';
+                document.getElementById('profile-phone').textContent = user.phone;
+                
+                // Update location
+                let locationText = 'Not specified';
+                if (user.city || user.district) {
+                    locationText = '';
+                    if (user.city) locationText += user.city;
+                    if (user.district) locationText += (locationText ? ', ' : '') + user.district;
+                    if (user.ward_num) locationText += ` (Ward ${user.ward_num})`;
+                }
+                document.getElementById('profile-location').textContent = locationText;
+                
+                // Update verification status
+                const verificationSpan = document.getElementById('profile-verification');
+                const verificationStat = document.getElementById('verification-stat');
+                const verifyBtn = document.getElementById('verify-profile-btn');
+                
+                if (user.citizenship_num) {
+                    if (verificationSpan) {
+                        verificationSpan.innerHTML = '<span class="status-badge status-verified"><i class="fas fa-check-circle"></i> Verified</span>';
+                    }
+                    if (verificationStat) {
+                        verificationStat.innerHTML = '<span style="color: #4cc9f0;"><i class="fas fa-check-circle"></i> Verified</span>';
+                    }
+                    if (verifyBtn) {
+                        verifyBtn.style.display = 'none';
+                    }
+                } else {
+                    if (verificationSpan) {
+                        verificationSpan.innerHTML = '<span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending</span>';
+                    }
+                    if (verificationStat) {
+                        verificationStat.innerHTML = '<span style="color: #f72585;"><i class="fas fa-exclamation-triangle"></i> Needs Verification</span>';
+                    }
+                    if (verifyBtn) {
+                        verifyBtn.style.display = 'inline-block';
+                    }
+                }
+                
+                // Update account type
+                const profileType = document.getElementById('profile-type');
+                if (profileType) {
+                    if (user.admin) {
+                        profileType.innerHTML = '<span class="status-badge status-admin"><i class="fas fa-crown"></i> Administrator</span>';
+                    } else {
+                        profileType.innerHTML = '<span>Regular User</span>';
+                    }
+                }
+                
+                // Update role in header
+                const profileRole = document.getElementById('profile-role');
+                if (profileRole) {
+                    profileRole.textContent = user.admin ? 'Administrator' : 'Community Member';
+                }
+            }
+        
+            async function loadStats(user) {
+                try {
+                    const api = shared.getAPI();
+                    
+                    // Get all projects
+                    const projects = await api.projects.listProjects();
+                    const activeProjects = projects.filter(p => p.status !== 'COMPLETED' && p.status !== 'CANCELLED');
+                    
+                    const totalProjectsEl = document.getElementById('total-projects');
+                    if (totalProjectsEl) {
+                        totalProjectsEl.textContent = activeProjects.length;
+                    }
+                    
+                    // Count all issues
+                    let totalIssues = 0;
+                    for (const project of projects.slice(0, 5)) {
+                        try {
+                            const issues = await api.issues.getProjectIssues(project.id);
+                            totalIssues += issues.length;
+                        } catch (error) {
+                            console.warn(`Could not load issues for project ${project.id}:`, error);
+                        }
+                    }
+                    
+                    const totalIssuesEl = document.getElementById('total-issues');
+                    if (totalIssuesEl) {
+                        totalIssuesEl.textContent = totalIssues;
+                    }
+        
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                    const totalProjectsEl = document.getElementById('total-projects');
+                    const totalIssuesEl = document.getElementById('total-issues');
+                    
+                    if (totalProjectsEl) totalProjectsEl.textContent = '0';
+                    if (totalIssuesEl) totalIssuesEl.textContent = '0';
+                }
+            }
+        
+        
+            function updateProfile() {
+                const currentName = document.getElementById('profile-name').textContent;
+                const newName = prompt('Enter your full name:', currentName === 'No Name Set' ? '' : currentName);
+                
+                if (newName !== null && newName.trim() !== '') {
+                    // Note: You'll need to implement a profile update endpoint
+                    alert('Profile update feature coming soon! Your name: ' + newName);
+                    // For now, update the display
+                    document.getElementById('profile-name').textContent = newName;
+                    document.getElementById('user-name').textContent = newName;
+                    
+                    // Log this activity
+                    try {
+                        const user = shared.checkAuth();
+                        const tracker = new ActivityTracker(user);
+                        tracker.log({
+                            icon: 'fas fa-user-edit',
+                            title: 'Updated profile name',
+                            color: '#4cc9f0'
+                        });
+                    } catch (e) {
+                        console.error('Failed to log profile update:', e);
+                    }
+                }
+            }
+        </script>
+    </main>
+</body>
+</html>

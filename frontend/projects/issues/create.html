@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Issue</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <!-- Add to all HTML files -->
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Report Issue</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/projects/list.html">← Projects</a></li>
+            </ul>
+        </nav>
+
+        <article>
+            <h2>Report an Issue</h2>
+            
+            <form id="issue-form">
+                <!-- Project Selection -->
+                <label>
+                    Select Project
+                    <select id="project-select" required>
+                        <option value="">Choose project...</option>
+                    </select>
+                </label>
+
+                <!-- Issue Details -->
+                <label>
+                    Issue Description *
+                    <textarea id="issue-reason" rows="4" required 
+                              placeholder="Describe the issue in detail..."></textarea>
+                </label>
+
+                <!-- Proof URLs -->
+                <label>
+                    Proof/Evidence URLs (Optional)
+                    <input type="text" id="issue-proofs" 
+                           placeholder="https://example.com/photo1.jpg, https://example.com/photo2.jpg">
+                    <small>Enter comma-separated URLs</small>
+                </label>
+
+                <!-- Anonymous Reporting -->
+                <label>
+                    <input type="checkbox" id="issue-anonymous">
+                    Report anonymously
+                </label>
+                <small>If checked, your identity will not be shared</small>
+
+                <!-- Submit -->
+                <button type="submit" id="submit-btn">Submit Report</button>
+            </form>
+
+            <div id="message"></div>
+        </article>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                const user = shared.checkAuth();
+                if (!user) return;
+
+                await loadProjects();
+                
+                // Check if project is pre-selected from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectId = urlParams.get('project');
+                if (projectId) {
+                    document.getElementById('project-select').value = projectId;
+                }
+
+                // Setup form
+                const form = document.getElementById('issue-form');
+                form.addEventListener('submit', submitIssue);
+            });
+
+            async function loadProjects() {
+                try {
+                    const api = shared.getAPI();
+                    const projects = await api.projects.listProjects();
+                    
+                    const select = document.getElementById('project-select');
+                    projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.id;
+                        option.textContent = `${project.title} (${project.district})`;
+                        select.appendChild(option);
+                    });
+
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+
+            async function submitIssue(e) {
+                e.preventDefault();
+
+                const projectId = document.getElementById('project-select').value;
+                const reason = document.getElementById('issue-reason').value;
+                const proofs = document.getElementById('issue-proofs').value;
+                const anonymous = document.getElementById('issue-anonymous').checked;
+
+                if (!projectId) {
+                    showMessage('Please select a project', 'error');
+                    return;
+                }
+
+                const issueData = {
+                    project_id: projectId,
+                    reason: reason,
+                    proof_urls: proofs ? proofs.split(',').map(url => url.trim()) : [],
+                    anonymous: anonymous
+                };
+
+                const button = document.getElementById('submit-btn');
+                button.disabled = true;
+                button.textContent = 'Submitting...';
+
+                try {
+                    const api = shared.getAPI();
+                    const issue = await api.issues.createIssue(projectId, issueData);
+                    
+                    showMessage(`
+                        Issue reported successfully!<br>
+                        <small>Issue ID: ${issue.id}</small>
+                    `, 'success');
+                    
+                    // Clear form after success
+                    setTimeout(() => {
+                        document.getElementById('issue-form').reset();
+                        button.disabled = false;
+                        button.textContent = 'Submit Report';
+                    }, 2000);
+
+                } catch (error) {
+                    showMessage('Error: ' + error.message, 'error');
+                    button.disabled = false;
+                    button.textContent = 'Submit Report';
+                }
+            }
+
+            function showMessage(text, type) {
+                const messageDiv = document.getElementById('message');
+                messageDiv.innerHTML = `
+                    <article class="${type === 'error' ? 'secondary' : 'primary'}">
+                        <p>${text}</p>
+                    </article>
+                `;
+            }
+        </script>
+    </main>
+</body>
+</html>

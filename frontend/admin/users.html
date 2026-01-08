@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - Admin</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/router.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation - Cleaner -->
+        <nav style="margin-bottom: 2rem; padding: 1rem 0; border-bottom: 1px solid #dee2e6;">
+            <ul style="margin-bottom: 0;">
+                <li style="font-size: 1.2rem;">
+                    <i class="fas fa-users" style="margin-right: 0.5rem; color: #4361ee;"></i>
+                    <strong>User Management</strong>
+                </li>
+            </ul>
+            <ul style="margin-bottom: 0;">
+                <li>
+                    <a href="/admin/dashboard.html" style="padding: 0.5rem 1rem; border-radius: 4px;">
+                        <i class="fas fa-arrow-left" style="margin-right: 0.5rem;"></i>Back to Dashboard
+                    </a>
+                </li>
+                <li>
+                    <button onclick="shared.logout()" style="background: #0172AD; border: 1px solid #dee2e6;">
+                        <i class="fas fa-sign-out-alt" style="margin-right: 0.5rem;"></i>Logout
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Stats Summary -->
+        <div class="grid" style="margin-bottom: 2rem; gap: 1rem;">
+            <div>
+                <article style="padding: 1rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+                    <h6 style="margin: 0 0 0.5rem 0; color: #666;">Total Users</h6>
+                    <h3 style="margin: 0;" id="total-users">0</h3>
+                </article>
+            </div>
+            <div>
+                <article style="padding: 1rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+                    <h6 style="margin: 0 0 0.5rem 0; color: #666;">Admins</h6>
+                    <h3 style="margin: 0;" id="admin-users">0</h3>
+                </article>
+            </div>
+            <div>
+                <article style="padding: 1rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+                    <h6 style="margin: 0 0 0.5rem 0; color: #666;">Verified</h6>
+                    <h3 style="margin: 0;" id="verified-users">0</h3>
+                </article>
+            </div>
+            <div>
+                <article style="padding: 1rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+                    <h6 style="margin: 0 0 0.5rem 0; color: #666;">Pending</h6>
+                    <h3 style="margin: 0;" id="pending-users">0</h3>
+                </article>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="grid" style="gap: 2rem;">
+            <!-- Users List Section -->
+            <div style="grid-column: span 2;">
+                <article style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1.5rem;">
+                    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0;">
+                            <i class="fas fa-user-friends" style="margin-right: 0.5rem; color: #4361ee;"></i>
+                            Users
+                        </h3>
+                        <button onclick="refreshUsers()" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-sync-alt" style="margin-right: 0.5rem;"></i>Refresh
+                        </button>
+                    </header>
+                    
+                    <!-- Filters - Cleaner -->
+                    <div class="grid" style="gap: 1rem; margin-bottom: 1.5rem; align-items: end;">
+                        <div>
+                            <label for="search-users" style="font-weight: 500; margin-bottom: 0.25rem;">
+                                <i class="fas fa-search" style="margin-right: 0.5rem;"></i>Search
+                            </label>
+                            <input type="search" id="search-users" placeholder="Search users..." 
+                                   style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="filter-role" style="font-weight: 500; margin-bottom: 0.25rem;">Role</label>
+                            <select id="filter-role" style="width: 100%;">
+                                <option value="">All</option>
+                                <option value="admin">Admins</option>
+                                <option value="user">Users</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-verification" style="font-weight: 500; margin-bottom: 0.25rem;">Status</label>
+                            <select id="filter-verification" style="width: 100%;">
+                                <option value="">All</option>
+                                <option value="verified">Verified</option>
+                                <option value="unverified">Unverified</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Users List -->
+                    <div id="users-list">
+                        <div style="text-align: center; padding: 2rem; color: #666;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <p>Loading users...</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            
+            <!-- Admin Actions Sidebar -->
+            <div>
+                <article style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1.5rem;">
+                    <header style="margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0;">
+                            <i class="fas fa-user-plus" style="margin-right: 0.5rem; color: #4361ee;"></i>
+                            Make Admin
+                        </h3>
+                    </header>
+                    
+                    <form id="make-admin-form">
+                        <div style="margin-bottom: 1rem;">
+                            <label for="admin-phone" style="font-weight: 500; margin-bottom: 0.25rem;">
+                                Phone Number
+                            </label>
+                            <div style="position: relative;">
+                                <i class="fas fa-phone" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #999;"></i>
+                                <input type="tel" id="admin-phone" 
+                                       placeholder="98XXXXXXXX" 
+                                       pattern="[0-9]{10}" 
+                                       required
+                                       style="width: 100%; padding-left: 2.5rem;">
+                            </div>
+                            <small style="color: #888; font-size: 0.875rem;">10-digit number without spaces</small>
+                        </div>
+                        
+                        <button type="submit" id="make-admin-btn" style="width: 100%;">
+                            <i class="fas fa-user-shield" style="margin-right: 0.5rem;"></i>Make Admin
+                        </button>
+                    </form>
+                    
+                    <div id="admin-message" style="margin-top: 1rem;"></div>
+                </article>
+                
+                <!-- Quick Links -->
+                <article style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1.5rem; margin-top: 1rem;">
+                    <header style="margin-bottom: 1rem;">
+                        <h4 style="margin: 0;">Quick Actions</h4>
+                    </header>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <a href="/admin/verify-users.html" 
+                           style="display: flex; align-items: center; padding: 0.75rem; background: #f8f9fa; border-radius: 4px; text-decoration: none;">
+                            <i class="fas fa-user-check" style="margin-right: 0.75rem; color: #06d6a0;"></i>
+                            Verify Users
+                        </a>
+                    </div>
+                </article>
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Admin check
+                if (!shared.isAdmin()) {
+                    showMessage('Unauthorized access. Redirecting...', 'error');
+                    setTimeout(() => window.location.href = '/dashboard.html', 2000);
+                    return;
+                }
+                
+                loadUsers();
+                
+                // Admin form
+                const form = document.getElementById('make-admin-form');
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const phone = document.getElementById('admin-phone').value.trim();
+                    const messageDiv = document.getElementById('admin-message');
+                    const button = document.getElementById('make-admin-btn');
+                    
+                    if (!/^\d{10}$/.test(phone)) {
+                        showMessage(messageDiv, 'Enter a valid 10-digit phone number', 'error');
+                        return;
+                    }
+                    
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                    
+                    try {
+                        const api = shared.getAPI();
+                        const user = await api.auth.setAdmin(phone);
+                        
+                        showMessage(messageDiv, 
+                            `<strong>Success!</strong> ${user.name || user.phone} is now an admin.`, 
+                            'success');
+                        
+                        loadUsers();
+                        form.reset();
+                        
+                    } catch (error) {
+                        showMessage(messageDiv, `<strong>Error:</strong> ${error.message}`, 'error');
+                    } finally {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-user-shield"></i> Make Admin';
+                    }
+                });
+                
+                // Setup filters
+                document.getElementById('search-users').addEventListener('input', filterUsers);
+                document.getElementById('filter-role').addEventListener('change', filterUsers);
+                document.getElementById('filter-verification').addEventListener('change', filterUsers);
+            });
+            
+            let allUsers = [];
+            
+            async function loadUsers() {
+                try {
+                    const container = document.getElementById('users-list');
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #666;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <p>Loading users...</p>
+                        </div>
+                    `;
+                    
+                    const api = shared.getAPI();
+                    allUsers = await api.verification.getAllUsers();
+                    
+                    displayUsers(allUsers);
+                    updateStats(allUsers);
+                    
+                } catch (error) {
+                    document.getElementById('users-list').innerHTML = `
+                        <div style="text-align: center; padding: 2rem; background: #fff3cd; border-radius: 4px;">
+                            <i class="fas fa-exclamation-triangle" style="color: #856404; font-size: 1.5rem; margin-bottom: 1rem;"></i>
+                            <h4 style="margin: 0 0 0.5rem 0; color: #856404;">Error Loading Users</h4>
+                            <p style="margin-bottom: 1rem;">${error.message}</p>
+                            <button onclick="loadUsers()" style="background: #856404; color: white;">
+                                <i class="fas fa-redo" style="margin-right: 0.5rem;"></i>Try Again
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+            
+            function displayUsers(users) {
+                const container = document.getElementById('users-list');
+                
+                if (users.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #666;">
+                            <i class="fas fa-user-slash" style="font-size: 1.5rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                            <p>No users found</p>
+                            <button onclick="clearFilters()" style="margin-top: 0.5rem;">
+                                Clear Filters
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">';
+                
+                users.forEach(user => {
+                    const isAdmin = user.admin;
+                    const isVerified = user.citizenship_num;
+                    
+                    html += `
+                        <div style="border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; 
+                                    ${isAdmin ? 'border-left: 3px solid #dc3545;' : 
+                                      isVerified ? 'border-left: 3px solid #28a745;' : 
+                                      'border-left: 3px solid #ffc107;'}">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                                <div>
+                                    <h5 style="margin: 0 0 0.25rem 0;">${user.name || 'Unnamed User'}</h5>
+                                    <p style="margin: 0; color: #666; font-size: 0.9rem;">
+                                        <i class="fas fa-phone" style="margin-right: 0.25rem;"></i>${user.phone}
+                                    </p>
+                                </div>
+                                <div>
+                                
+                                ${isAdmin ? '<span style="background: #dc3545; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">Admin</span>':
+                                '<span style="background: #ffc107; color: #333; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">User</span>'}
+                                </div>
+                            </div>
+                            
+                            ${user.city || user.district ? `
+                            <p style="margin: 0.5rem 0; color: #666; font-size: 0.9rem;">
+                                <i class="fas fa-map-marker-alt" style="margin-right: 0.25rem;"></i>
+                                ${user.city ? user.city+'-'+user.ward_num + ', ' : ''}${user.district || ''}
+                            </p>
+                            ` : ''}
+                           ${isVerified ? '<span style="background: #28a745; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">Verified</span>':
+                           '<span style="background: #28a745; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">Unverified</span>'
+                            }
+                            
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            }
+            
+            function updateStats(users) {
+                const total = users.length;
+                const admins = users.filter(u => u.admin).length;
+                const verified = users.filter(u => u.citizenship_num).length;
+                const pending = total - verified;
+                
+                document.getElementById('total-users').textContent = total;
+                document.getElementById('admin-users').textContent = admins;
+                document.getElementById('verified-users').textContent = verified;
+                document.getElementById('pending-users').textContent = pending;
+            }
+            
+            function filterUsers() {
+                const search = document.getElementById('search-users').value.toLowerCase();
+                const roleFilter = document.getElementById('filter-role').value;
+                const verificationFilter = document.getElementById('filter-verification').value;
+                
+                const filtered = allUsers.filter(user => {
+                    const matchesSearch = !search || 
+                        user.phone.includes(search) ||
+                        (user.name && user.name.toLowerCase().includes(search)) ||
+                        (user.city && user.city.toLowerCase().includes(search));
+                    
+                    const matchesRole = !roleFilter || 
+                        (roleFilter === 'admin' && user.admin) ||
+                        (roleFilter === 'user' && !user.admin);
+                    
+                    const matchesVerification = !verificationFilter ||
+                        (verificationFilter === 'verified' && user.citizenship_num) ||
+                        (verificationFilter === 'unverified' && !user.citizenship_num);
+                    
+                    return matchesSearch && matchesRole && matchesVerification;
+                });
+                
+                displayUsers(filtered);
+            }
+            
+            function clearFilters() {
+                document.getElementById('search-users').value = '';
+                document.getElementById('filter-role').value = '';
+                document.getElementById('filter-verification').value = '';
+                displayUsers(allUsers);
+            }
+            
+            async function makeUserAdmin(phone) {
+                if (!confirm(`Make user ${phone} an admin?`)) return;
+                
+                try {
+                    const api = shared.getAPI();
+                    await api.auth.setAdmin(phone);
+                    
+                    showMessage(`User ${phone} is now an admin`, 'success');
+                    loadUsers();
+                } catch (error) {
+                    showMessage(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            function refreshUsers() {
+                loadUsers();
+            }
+            
+            function showMessage(element, text, type) {
+                if (typeof element === 'string') {
+                    // Global notification
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <div style="position: fixed; top: 1rem; right: 1rem; 
+                                    padding: 1rem; border-radius: 4px; z-index: 1000;
+                                    ${type === 'success' ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+                                      type === 'error' ? 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;' :
+                                      'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;'}">
+                            ${text}
+                        </div>
+                    `;
+                    document.body.appendChild(div);
+                    setTimeout(() => div.remove(), 3000);
+                    return;
+                }
+                
+                // Element-specific message
+                element.innerHTML = `
+                    <div style="padding: 0.75rem; border-radius: 4px;
+                                ${type === 'success' ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+                                  'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'}">
+                        ${text}
+                    </div>
+                `;
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        element.innerHTML = '';
+                    }, 3000);
+                }
+            }
+            
+            function exportUsers() {
+                showMessage('Export feature coming soon', 'info');
+            }
+            
+            function viewUserDetails(phone) {
+                showMessage(`Details for ${phone} coming soon`, 'info');
+            }
+        </script>
+        
+        <style>
+            /* Minimal enhancements */
+            button, input, select {
+                border-radius: 4px !important;
+            }
+            
+            button:hover {
+                opacity: 0.9;
+            }
+            
+            article {
+                transition: box-shadow 0.2s ease;
+            }
+            
+            article:hover {
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 1rem;
+                }
+                
+                .grid[style*="grid-template-columns"] {
+                    grid-template-columns: 1fr !important;
+                }
+                
+                nav ul {
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+            }
+        </style>
+    </main>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Project Management</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+
+    <!-- Add to all HTML files -->
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Project Management System</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/index.html">← Home</a></li>
+            </ul>
+        </nav>
+        
+        <article>
+            <header>
+                <h2>Login</h2>
+            </header>
+            
+            <form id="login-form">
+                <label for="phone">
+                    Phone Number
+                    <input type="tel" id="phone" name="phone" 
+                           placeholder="98XXXXXXXX" pattern="[0-9]{10}" required>
+                </label>
+                
+                <label for="password">
+                    Password
+                    <input type="password" id="password" name="password" required>
+                    <small>Must have 5+ characters with 2+ special symbols</small>
+                </label>
+                
+                <button type="submit" id="login-btn">Login</button>
+            </form>
+            
+            <footer>
+                <p>Don't have an account? <a href="/auth/register.html">Register here</a></p>
+            </footer>
+        </article>
+        
+        <div id="message"></div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const form = document.getElementById('login-form');
+                const messageDiv = document.getElementById('message');
+                const loginBtn = document.getElementById('login-btn');
+                
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const phone = document.getElementById('phone').value.trim();
+                    const password = document.getElementById('password').value;
+                    
+                    // Validate phone
+                    if (!/^\d{10}$/.test(phone)) {
+                        showMessage('Please enter a valid 10-digit phone number', 'error');
+                        return;
+                    }
+                    
+                    loginBtn.disabled = true;
+                    loginBtn.textContent = 'Logging in...';
+                    
+                    try {
+                        const api = shared.getAPI();
+                        const result = await api.auth.login({ phone, password });
+                        
+                        showMessage('Login successful! Redirecting...', 'success');
+                                   window.location.href = '../index.html';
+                                   
+                        
+                    } catch (error) {
+                        showMessage(`${error.message}`, 'error');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Login';
+                    }
+                });
+                
+                function showMessage(text, type) {
+                    messageDiv.innerHTML = `
+                        <article class="${type === 'error' ? 'secondary' : 'primary'}">
+                            <p>${text}</p>
+                        </article>
+                    `;
+                    
+                    // Auto-hide success messages
+                    if (type === 'success') {
+                        setTimeout(() => {
+                            messageDiv.innerHTML = '';
+                        }, 3000);
+                    }
+                }
+            });
+        </script>
+    </main>
+</body>
+</html>

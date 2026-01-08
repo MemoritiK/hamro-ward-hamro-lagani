@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Details</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <style>
+        body {
+            background: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            padding: 2rem 1rem;
+        }
+        
+        .header {
+            margin-bottom: 2rem;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .project-title {
+            margin: 0;
+            color: #000000;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            color: #000000;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        
+        .project-header {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .project-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin: 1rem 0 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #4b5563;
+            font-size: 0.95rem;
+        }
+        
+        .meta-item strong {
+            color: #000000;
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .status-soon { background: #fef3c7; color: #92400e; }
+        .status-ongoing { background: #d1fae5; color: #065f46; }
+        .status-completed { background: #dbeafe; color: #1e40af; }
+        .status-delayed { background: #fee2e2; color: #991b1b; }
+        
+        .project-description {
+            color: #374151;
+            line-height: 1.6;
+            margin: 1.5rem 0;
+            font-size: 1.05rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.25rem;
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            color: #000000;
+        }
+        
+        .tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card h3 {
+            margin-top: 0;
+            color: #000000;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .progress-container {
+            margin: 1.5rem 0;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .detail-item {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        
+        .detail-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            color: #000000;
+        }
+        
+        .milestone-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid #e5e7eb;
+        }
+        
+        .milestone-item.completed {
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        .milestone-content {
+            flex-grow: 1;
+        }
+        
+        .milestone-title {
+            margin: 0 0 0.25rem 0;
+            color: #000000;
+            font-weight: 500;
+        }
+        
+        .milestone-date {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+            color: #000000;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #f9fafb;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .stats-grid,
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <h1 class="project-title" style="color: #3030e5;" id="project-title">Project Details</h1>
+                <a href="/projects/list.html" class="back-link">← Back to Projects</a>
+            </div>
+        </div>
+        
+        <!-- Project Header -->
+        <div class="project-header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div class="project-meta">
+                        <div class="meta-item">
+                            <span>Status:</span>
+                            <span class="status-badge" id="project-status">Loading...</span>
+                        </div>
+                        <div class="meta-item">
+                            <span>Type:</span>
+                            <strong id="project-type">--</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>Location:</span>
+                            <strong id="project-location">--</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>Contractor:</span>
+                            <strong id="project-contractor">--</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="project-description" id="project-description">
+                Loading project description...
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab" onclick="switchTab('milestones')">Milestones</button>
+            <button class="tab" onclick="switchTab('expenses')">Expenses</button>
+        </div>
+        
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-content active">
+            <!-- Finance Card -->
+            <div class="card">
+                <h3 id="finance-title">Finance</h3>
+                <div class="stats-grid" id="finance-stats">
+                    <!-- Dynamic content based on project type -->
+                </div>
+                
+                <div class="progress-container">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: #6b7280;" id="progress-label">Progress</span>
+                        <span style="font-weight: 500;" id="progress-text">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-bar" style="width: 0%; background: #2563eb;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Details Card -->
+            <div class="card">
+                <h3>Project Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Created Date</div>
+                        <div class="detail-value" id="created-date">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Deadline</div>
+                        <div class="detail-value" id="project-deadline">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Ward Number</div>
+                        <div class="detail-value" id="ward-number">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">City</div>
+                        <div class="detail-value" id="project-city">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">District</div>
+                        <div class="detail-value" id="project-district">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Milestones Tab -->
+        <div id="tab-milestones" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0;">Milestones</h3>
+                    <span style="color: #6b7280; font-size: 0.9rem;" id="milestone-stats">Loading...</span>
+                </div>
+                
+                <div id="milestones-container">
+                    <div class="loading">Loading milestones...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Expenses Tab -->
+        <div id="tab-expenses" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0;">Expenses</h3>
+                    <span style="color: #6b7280; font-size: 0.9rem;" id="expense-stats">Loading...</span>
+                </div>
+                
+                <div id="expenses-container">
+                    <div class="loading">Loading expenses...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="actions">
+            <button onclick="window.location.href='/projects/list.html'" class="btn">
+                Back to Projects
+            </button>
+            <div id="user-actions" style="display: flex; gap: 1rem;">
+                <!-- Will be populated -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check auth
+            const currentUser = shared.checkAuth();
+            if (!currentUser) return;
+            
+            // Get project ID from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            
+            if (!projectId) {
+                showError('No project ID specified');
+                return;
+            }
+            
+            // Load project data
+            await loadProject(projectId, currentUser);
+        });
+        
+        let currentProject = null;
+        let currentUser = null;
+        let isContractor = false;
+        
+        async function loadProject(projectId, user) {
+            try {
+                currentUser = user;
+                const api = shared.getAPI();
+                
+                // Load project details
+                currentProject = await api.projects.getProject(projectId);
+                
+                // Check if user is contractor for this project
+                isContractor = currentUser.phone === currentProject.contractor;
+                
+                // Update UI
+                updateProjectHeader();
+                updateFinanceSection();
+                updateOverviewTab();
+                updateActions();
+                
+                // Load additional data
+                await loadMilestones(projectId);
+                await loadExpenses(projectId);
+                
+            } catch (error) {
+                console.error('Error loading project:', error);
+                showError(`Failed to load project: ${error.message}`);
+            }
+        }
+        
+        function updateProjectHeader() {
+            // Update title
+            document.getElementById('project-title').textContent = currentProject.title;
+            
+            // Update status
+            const statusEl = document.getElementById('project-status');
+            if (statusEl) {
+                statusEl.textContent = currentProject.status.charAt(0).toUpperCase() + currentProject.status.slice(1);
+                statusEl.className = `status-badge status-${currentProject.status}`;
+            }
+            
+            // Update other details
+            document.getElementById('project-type').textContent = currentProject.type;
+            document.getElementById('project-location').textContent = `${currentProject.city}, ${currentProject.district}`;
+            document.getElementById('project-contractor').textContent = currentProject.contractor_name;
+            document.getElementById('project-description').textContent = 
+                currentProject.description || 'No description provided';
+        }
+        
+        function updateFinanceSection() {
+            const financeTitle = document.getElementById('finance-title');
+            const financeStats = document.getElementById('finance-stats');
+            const progressLabel = document.getElementById('progress-label');
+            
+            let html = '';
+            
+            if (currentProject.type === 'Gov-funded') {
+                // Show budget for government funded projects
+                financeTitle.textContent = 'Budget';
+                progressLabel.textContent = 'Budget Utilization';
+                
+                html = `
+                    <div class="stat">
+                        <div class="stat-value" id="total-budget">${shared.formatCurrency(currentProject.total_budget)}</div>
+                        <div class="stat-label">Total Budget</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="budget-utilized">${shared.formatCurrency(currentProject.budget_utilized)}</div>
+                        <div class="stat-label">Budget Used</div>
+                    </div>
+                `;
+                
+                // Calculate utilization rate for budget
+                const utilization = currentProject.total_budget > 0 ? 
+                    (currentProject.budget_utilized / currentProject.total_budget * 100) : 0;
+                document.getElementById('progress-text').textContent = utilization.toFixed(0) + '%';
+                
+                // Update progress bar
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = `${Math.min(utilization, 100)}%`;
+                progressBar.style.background = utilization > 80 ? '#dc2626' : 
+                                              utilization > 50 ? '#f59e0b' : '#2563eb';
+                
+            } else if (currentProject.type === 'Community-funded') {
+                // Show fundraising for community funded projects
+                financeTitle.textContent = 'Fundraising';
+                progressLabel.textContent = 'Fundraising Progress';
+                
+                html = `
+                    <div class="stat">
+                        <div class="stat-value" id="target-amount">${shared.formatCurrency(currentProject.total_budget)}</div>
+                        <div class="stat-label">Target Amount</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="funds-raised">${shared.formatCurrency(currentProject.fundraised)}</div>
+                        <div class="stat-label">Funds Raised</div>
+                    </div>
+                `;
+                
+                const utilization = currentProject.total_budget > 0 ? 
+                    (currentProject.budget_utilized / currentProject.total_budget * 100) : 0;
+                document.getElementById('progress-text').textContent = utilization.toFixed(0) + '%';
+                
+                // Update progress bar
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = `${Math.min(progress, 100)}%`;
+                progressBar.style.background = progress > 80 ? '#10b981' : 
+                                              progress > 50 ? '#f59e0b' : '#2563eb';
+            }
+            
+            financeStats.innerHTML = html;
+        }
+        
+        function updateOverviewTab() {
+            // Update other details
+            document.getElementById('created-date').textContent = shared.formatDate(currentProject.created_at);
+            document.getElementById('project-deadline').textContent = 
+                currentProject.deadline ? shared.formatDate(currentProject.deadline) : 'Not set';
+            document.getElementById('ward-number').textContent = currentProject.ward_num;
+            document.getElementById('project-city').textContent = currentProject.city;
+            document.getElementById('project-district').textContent = currentProject.district;
+        }
+        
+        async function loadMilestones(projectId) {
+            try {
+                const api = shared.getAPI();
+                const milestones = await api.projects.listMilestones(projectId);
+                updateMilestonesUI(milestones);
+                
+            } catch (error) {
+                console.error('Error loading milestones:', error);
+                document.getElementById('milestones-container').innerHTML = `
+                    <div class="empty-state">Error loading milestones</div>
+                `;
+            }
+        }
+        
+        function updateMilestonesUI(milestones) {
+            const container = document.getElementById('milestones-container');
+            
+            if (milestones.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">No milestones defined</div>
+                `;
+                return;
+            }
+            
+            // Update stats
+            const total = milestones.length;
+            const completed = milestones.filter(m => m.completed).length;
+            document.getElementById('milestone-stats').textContent = 
+                `${completed}/${total} completed`;
+            
+            // Display milestones
+            let html = '';
+            
+            milestones.forEach(milestone => {
+                const dueDate = milestone.due_date ? shared.formatDate(milestone.due_date) : 'No due date';
+                
+                html += `
+                    <div class="milestone-item ${milestone.completed ? 'completed' : ''}">
+                        <div class="milestone-content">
+                            <div class="milestone-title">${milestone.description || 'Unnamed Milestone'}</div>
+                            <div class="milestone-date">Due: ${dueDate}</div>
+                        </div>
+                        <div style="font-size: 1.2rem;">
+                            ${milestone.completed ? '✓' : '○'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        async function loadExpenses(projectId) {
+            try {
+                const api = shared.getAPI();
+                const expenses = await api.expenses.getProjectExpenditures(projectId);
+                updateExpensesUI(expenses);
+                
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                document.getElementById('expenses-container').innerHTML = `
+                    <div class="empty-state">Error loading expenses</div>
+                `;
+            }
+        }
+        
+        function updateExpensesUI(expenses) {
+            const container = document.getElementById('expenses-container');
+            
+            if (expenses.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">No expenses recorded</div>
+                `;
+                return;
+            }
+            
+            // Calculate stats
+            const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const count = expenses.length;
+            document.getElementById('expense-stats').textContent = 
+                `${count} expenses • Total: ${shared.formatCurrency(total)}`;
+            
+            // Display expenses in a table
+            let html = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            expenses.forEach(expense => {
+                html += `
+                    <tr>
+                        <td>${expense.description || 'No description'}</td>
+                        <td style="font-weight: 500;">${shared.formatCurrency(expense.amount)}</td>
+                        <td>${shared.formatDate(expense.spent_on)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function updateActions() {
+            const userActions = document.getElementById('user-actions');
+            let html = '';
+            
+            if (isContractor) {
+                html += `
+                    <button onclick="window.location.href='/projects/contractor/manage.html?id=${currentProject.id}'" 
+                            class="btn btn-primary">
+                        Manage Project
+                    </button>
+                `;
+            }
+            
+            userActions.innerHTML = html;
+        }
+        
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(button => {
+                button.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show selected tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+        
+        function showError(message) {
+            document.body.innerHTML = `
+                <main class="container">
+                    <div style="text-align: center; padding: 4rem;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+                        <h2 style="color: #000000; margin-bottom: 1rem;">Error</h2>
+                        <p style="color: #6b7280; margin-bottom: 2rem;">${message}</p>
+                        <button onclick="window.location.href='/projects/list.html'" 
+                                class="btn">
+                            Back to Projects
+                        </button>
+                    </div>
+                </main>
+            `;
+        }
+    </script>
+</body>
+</html>

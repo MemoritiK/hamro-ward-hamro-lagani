@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Projects - Admin</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/router.js"></script>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li><strong> Manage Projects</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/admin/dashboard.html">← Admin Dashboard</a></li>
+                <li><a href="/projects/list.html">View Projects</a></li>
+                <li><button onclick="shared.logout()">Logout</button></li>
+            </ul>
+        </nav>
+        
+        <!-- Create New Project -->
+        <article>
+            <header>
+                <h3>Create New Project</h3>
+            </header>
+            
+            <form id="create-project-form">
+                <!-- Basic Project Info -->
+                <h4>Project Details</h4>
+                <div class="grid">
+                    <label for="title">
+                        Project Title *
+                        <input type="text" id="title" name="title" required>
+                    </label>
+                    
+                    <label for="type">
+                        Project Type *
+                        <select id="type" name="type" required>
+                            <option value="">Select type</option>
+                            <option value="Gov-funded">Government Funded</option>
+                            <option value="Community-funded">Community Funded</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <label for="description">
+                    Description
+                    <textarea id="description" name="description" rows="3"></textarea>
+                </label>
+                
+                <!-- Location -->
+                <h4>Location</h4>
+                <div class="grid">
+                    <label for="city">
+                        City/Municipality *
+                        <input type="text" id="city" name="city" required>
+                    </label>
+                    
+                    <label for="district">
+                        District *
+                        <input type="text" id="district" name="district" required>
+                    </label>
+                    
+                    <label for="ward_num">
+                        Ward Number *
+                        <input type="number" id="ward_num" name="ward_num" min="1" required>
+                    </label>
+                </div>
+                
+                <!-- Contractor & Budget -->
+                <h4>Contractor & Budget</h4>
+                <div class="grid">
+                    <label for="contractor">
+                        Contractor Phone *
+                        <input type="tel" id="contractor" name="contractor" 
+                               placeholder="98XXXXXXXX" pattern="[0-9]{10}" required>
+                        <small>Must be a registered and verified user</small>
+                    </label>
+                    
+                    <label for="total_budget">
+                        Total Budget / Fund Raised (₹) *
+                        <input type="number" id="total_budget" name="total_budget" 
+                               min="0" step="0.01" required>
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <label for="status">
+                        Initial Status
+                        <select id="status" name="status">
+                            <option value="soon">Soon</option>
+                            <option value="ongoing" selected>Ongoing</option>
+                            <option value="completed">Completed</option>
+                            <option value="delayed">Delayed</option>
+                        </select>
+                    </label>
+                    
+                    <label for="deadline">
+                        Deadline
+                        <input type="date" id="deadline" name="deadline">
+                    </label>
+                </div>
+                
+                <!-- Milestones -->
+                <h4>Project Milestones</h4>
+                <div id="milestones-container">
+                    <div class="milestone-item">
+                        <div class="grid">
+                            <label>
+                                Description
+                                <input type="text" name="milestone_desc[]" placeholder="Milestone description">
+                            </label>
+                            <label>
+                                Due Date
+                                <input type="date" name="milestone_due[]">
+                            </label>
+                            <div style="margin-top: 1.8rem;">
+                                <button type="button" onclick="removeMilestone(this)" class="secondary">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" onclick="addMilestone()" class="secondary">
+                    + Add Another Milestone
+                </button>
+                
+                <!-- Submit -->
+                <div style="margin-top: 2rem;">
+                    <button type="button" id="create-btn" class="primary">
+                        Create Project
+                    </button>
+                    <button type="button" onclick="resetForm()" class="secondary">
+                        Reset Form
+                    </button>
+                </div>
+            </form>
+            
+            <div id="create-message"></div>
+        </article>
+        
+        <!-- Existing Projects -->
+        <article>
+            <header>
+                <h3>Existing Projects</h3>
+                <p>Click on a project to edit or delete</p>
+            </header>
+            
+            <div id="existing-projects">
+                <p>Loading projects...</p>
+            </div>
+        </article>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Check if user is admin
+                if (!shared.isAdmin()) {
+                    alert('Unauthorized access. Redirecting to user dashboard.');
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+                
+                loadExistingProjects();
+                
+                // Setup project creation form
+                const form = document.getElementById('create-project-form');
+                document.getElementById('create-btn').addEventListener('click', async function(e) {
+                    const button = document.getElementById('create-btn');
+                    
+                    // Validate contractor phone
+                    const contractor = document.getElementById('contractor').value.trim();
+                    if (!/^\d{10}$/.test(contractor)) {
+                        showMessage(messageDiv, 'Please enter a valid 10-digit contractor phone', 'error');
+                        return;
+                    }
+                    
+                    // Collect project data
+                    const projectData = {
+                        title: document.getElementById('title').value.trim(),
+                        type: document.getElementById('type').value,
+                        description: document.getElementById('description').value.trim() || undefined,
+                        ward_num: parseInt(document.getElementById('ward_num').value),
+                        district: document.getElementById('district').value.trim(),
+                        city: document.getElementById('city').value.trim(),
+                        contractor: contractor,
+                        total_budget: parseFloat(document.getElementById('total_budget').value),
+                        status: document.getElementById('status').value,
+                        deadline: document.getElementById('deadline').value || undefined
+                    };
+                    
+                    // Collect milestones
+                    const milestones = [];
+                    const milestoneItems = document.querySelectorAll('.milestone-item');
+                    milestoneItems.forEach(item => {
+                        const desc = item.querySelector('input[name="milestone_desc[]"]').value.trim();
+                        const due = item.querySelector('input[name="milestone_due[]"]').value;
+                        
+                        if (desc) {
+                            milestones.push({
+                                description: desc,
+                                due_date: due || undefined
+                            });
+                        }
+                    });
+                    
+                    button.disabled = true;
+                    button.textContent = 'Creating Project...';
+                    
+                    try {
+                        const api = shared.getAPI();
+                        
+                        // First, check if contractor exists and is verified
+                        // Note: You'll need to implement a user check endpoint
+                        // For now, we'll proceed and let the backend validate
+                        
+                        const project = await api.projects.createProject(projectData, milestones);
+                        const messageDiv = document.getElementById('create-message');
+                        showMessage(messageDiv, 
+                            `Project "${project.title}" created successfully!<br>
+                             <a href="/projects/view.html?id=${project.id}">View Project</a>`, 
+                            'success');
+                        
+                        // Reset form
+                        resetForm();
+                        
+                        // Reload existing projects
+                        loadExistingProjects();
+                        
+                    } catch (error) {
+                        showMessage(messageDiv, `Error: ${error.message}`, 'error');
+                    } finally {
+                        button.disabled = false;
+                        button.textContent = 'Create Project';
+                    }
+                });
+            });
+            
+            let allProjects = [];
+            let milestoneCounter = 1;
+            
+            function addMilestone() {
+                const container = document.getElementById('milestones-container');
+                const newMilestone = document.createElement('div');
+                newMilestone.className = 'milestone-item';
+                newMilestone.innerHTML = `
+                    <div class="grid">
+                        <label>
+                            Description
+                            <input type="text" name="milestone_desc[]" 
+                                   placeholder="Milestone description">
+                        </label>
+                        <label>
+                            Due Date
+                            <input type="date" name="milestone_due[]">
+                        </label>
+                        <div style="margin-top: 1.8rem;">
+                            <button type="button" onclick="removeMilestone(this)" class="secondary">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(newMilestone);
+                milestoneCounter++;
+            }
+            
+            function removeMilestone(button) {
+                const milestoneItem = button.closest('.milestone-item');
+                if (document.querySelectorAll('.milestone-item').length > 1) {
+                    milestoneItem.remove();
+                } else {
+                    // Don't remove the last one, just clear it
+                    milestoneItem.querySelector('input[name="milestone_desc[]"]').value = '';
+                    milestoneItem.querySelector('input[name="milestone_due[]"]').value = '';
+                }
+            }
+            
+            function resetForm() {
+                document.getElementById('create-project-form').reset();
+                const container = document.getElementById('milestones-container');
+                container.innerHTML = `
+                    <div class="milestone-item">
+                        <div class="grid">
+                            <label>
+                                Description
+                                <input type="text" name="milestone_desc[]" 
+                                       placeholder="Milestone description">
+                            </label>
+                            <label>
+                                Due Date
+                                <input type="date" name="milestone_due[]">
+                            </label>
+                            <div style="margin-top: 1.8rem;">
+                                <button type="button" onclick="removeMilestone(this)" class="secondary">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                milestoneCounter = 1;
+                document.getElementById('create-message').innerHTML = '';
+            }
+            
+            async function loadExistingProjects() {
+                try {
+                    const api = shared.getAPI();
+                    allProjects = await api.projects.listProjects();
+                    
+                    displayExistingProjects(allProjects);
+                    
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    document.getElementById('existing-projects').innerHTML = 
+                        `<p class="secondary">Error loading projects: ${error.message}</p>`;
+                }
+            }
+            
+            function displayExistingProjects(projects) {
+                if (projects.length === 0) {
+                    document.getElementById('existing-projects').innerHTML = 
+                        '<p>No projects yet. Create your first project above!</p>';
+                    return;
+                }
+                
+                let html = '<div class="grid">';
+                
+                projects.forEach(project => {
+                    html += `
+                        <div>
+                            <article>
+                                <header>
+                                    <hgroup>
+                                        <h5>${project.title}</h5>
+                                        <h6>${shared.getStatusBadge(project.status)}</h6>
+                                    </hgroup>
+                                </header>
+                                
+                                <p>${project.description ? project.description.substring(0, 100) + '...' : 'No description'}</p>
+                                
+                                <small>
+                                    <strong>Location:</strong> ${project.city}, ${project.district}, Ward ${project.ward_num}<br>
+                                    <strong>Budget:</strong> ${shared.formatCurrency(project.total_budget)}<br>
+                                    <strong>Contractor:</strong> ${project.contractor}<br>
+                                    <strong>Created:</strong> ${shared.formatDate(project.created_at)}
+                                </small>
+                                
+                                <footer>
+                                    <a href="/projects/view.html?id=${project.id}" role="button" class="small">
+                                        View
+                                    </a>
+                                    <a href="#" onclick="editProject('${project.id}')" role="button" class="secondary small">
+                                        Edit
+                                    </a>
+                                    <a href="#" onclick="deleteProject('${project.id}', '${project.title}')" 
+                                       role="button" class="secondary small">
+                                        Delete
+                                    </a>
+                                </footer>
+                            </article>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                document.getElementById('existing-projects').innerHTML = html;
+            }
+            
+            async function editProject(projectId) {
+                // Redirect to project view/edit page
+                window.location.href = `/projects/view.html?id=${projectId}&edit=true`;
+            }
+            
+            async function deleteProject(projectId, projectTitle) {
+                if (!confirm(`Are you sure you want to delete project "${projectTitle}"?`)) {
+                    return;
+                }
+                
+                try {
+                    const api = shared.getAPI();
+                    await api.projects.deleteProject(projectId);
+                    
+                    alert(`Project "${projectTitle}" deleted successfully!`);
+                    loadExistingProjects();
+                    
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+            
+            function showMessage(element, text, type) {
+                element.innerHTML = `
+                    <article class="${type === 'error' ? 'secondary' : 'primary'}">
+                        <p>${text}</p>
+                    </article>
+                `;
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        element.innerHTML = '';
+                    }, 5000);
+                }
+            }
+        </script>
+        
+        <style>
+            .milestone-item {
+                background: #f8f9fa;
+                padding: 1rem;
+                margin: 0.5rem 0;
+                border-radius: 4px;
+                border-left: 4px solid var(--primary);
+            }
+            
+            button.small {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.9rem;
+                margin-right: 0.25rem;
+            }
+            
+            h4 {
+                margin-top: 1.5rem;
+                margin-bottom: 0.5rem;
+                color: var(--primary);
+                border-bottom: 2px solid var(--muted-border-color);
+                padding-bottom: 0.25rem;
+            }
+        </style>
+    </main>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Project</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script src="/scripts/models.js"></script>
+    <script src="/scripts/api.js"></script>
+    <script src="/scripts/shared.js"></script>
+    <style>
+        .project-header {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .milestone-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+        
+        .milestone-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin: 0;
+            color: #111827;
+        }
+        
+        .milestone-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .update-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .expense-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .expense-item:last-child {
+            border-bottom: none;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <!-- Navigation -->
+        <nav>
+            <ul>
+                <li><strong>Manage Project</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/dashboard.html">Dashboard</a></li>
+                <li><button onclick="shared.logout()">Logout</button></li>
+            </ul>
+        </nav>
+
+        <!-- Project Header -->
+        <div class="project-header">
+            <h1 id="project-title" style="margin: 0 0 0.5rem 0; color: #0f0f0f;">Loading Project...</h1>
+            <div id="project-info" style="color: #6b7280;">
+                <span id="project-status">Loading...</span> • 
+                <span id="project-contractor">--</span>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div style="color: #0f0f0f;" class="stat-value" id="total-budget">--</div>
+                <div class="stat-label">Total Budget</div>
+            </div>
+            <div class="stat-card">
+                <div style="color: #0f0f0f;" class="stat-value" id="budget-used">--</div>
+                <div class="stat-label">Budget Used</div>
+            </div>
+            <div class="stat-card">
+                <div style="color: #0f0f0f;" class="stat-value" id="expense-count">--</div>
+                <div class="stat-label">Expenses</div>
+            </div>
+            <div class="stat-card">
+                <div style="color: #0f0f0f;" class="stat-value" id="utilization-rate">--</div>
+                <div class="stat-label">Utilization</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
+            <!-- Left: Project Details -->
+            <div>
+                <h3>Project Details</h3>
+                <div id="project-details" style="color: #4b5563;">
+                    <p>Loading details...</p>
+                </div>
+            </div>
+
+            <!-- Right: Recent Expenses -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Recent Expenses</h3>
+                    <a href="#" onclick="viewAllExpenses()" style="font-size: 0.9rem; color: #2563eb;">View all →</a>
+                </div>
+                <div id="recent-expenses" style="background: white; border-radius: 10px; border: 1px solid #e5e7eb;">
+                    <div style="padding: 1rem; color: #6b7280; text-align: center;">
+                        Loading expenses...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Milestones -->
+        <div style="margin: 2rem 0;">
+            <h3>Project Milestones</h3>
+            <div id="milestones-list">
+                <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                    Loading milestones...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const user = shared.checkAuth();
+            if (!user) return;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            
+            if (!projectId) {
+                alert('No project specified');
+                window.location.href = '/projects/list.html';
+                return;
+            }
+
+            await loadProject(projectId, user);
+        });
+
+        let currentProject = null;
+
+        async function loadProject(projectId, user) {
+            try {
+                const api = shared.getAPI();
+                currentProject = await api.projects.getProject(projectId);
+                
+                if (currentProject.contractor !== user.phone) {
+                    alert('You are not the contractor for this project');
+                    window.location.href = '/projects/view.html?id=' + projectId;
+                    return;
+                }
+
+                updateUI();
+                await loadProjectData(projectId);
+
+            } catch (error) {
+                alert('Error loading project: ' + error.message);
+                window.location.href = '/projects/list.html';
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('project-title').textContent = currentProject.title;
+            
+            const statusEl = document.getElementById('project-status');
+            statusEl.textContent = currentProject.status;
+            
+            const contractorEl = document.getElementById('project-contractor');
+            contractorEl.textContent = currentProject.contractor_name || currentProject.contractor;
+            
+            document.getElementById('total-budget').textContent = shared.formatCurrency(currentProject.total_budget);
+            document.getElementById('budget-used').textContent = shared.formatCurrency(currentProject.budget_utilized);
+            
+            document.getElementById('project-details').innerHTML = `
+                <p><strong>Location:</strong> ${currentProject.city}, ${currentProject.district}</p>
+                <p><strong>Ward:</strong> ${currentProject.ward_num}</p>
+                <p><strong>Type:</strong> ${currentProject.type}</p>
+                <p><strong>Deadline:</strong> ${currentProject.deadline ? shared.formatDate(currentProject.deadline) : 'Not set'}</p>
+            `;
+        }
+
+        async function loadProjectData(projectId) {
+            try {
+                const api = shared.getAPI();
+                
+                const milestones = await api.projects.listMilestones(projectId);
+                displayMilestones(milestones);
+                
+                const expenses = await api.expenses.getProjectExpenditures(projectId);
+                updateStatsAndExpenses(expenses);
+
+            } catch (error) {
+                console.error('Error loading project data:', error);
+            }
+        }
+
+        function displayMilestones(milestones) {
+            const container = document.getElementById('milestones-list');
+            
+            if (milestones.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #6b7280; background: white; border-radius: 10px; border: 1px solid #e5e7eb;">
+                        No milestones defined for this project
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            
+            milestones.forEach(milestone => {
+                const dueDate = milestone.due_date ? shared.formatDate(milestone.due_date) : 'No due date';
+                
+                html += `
+                    <div class="milestone-card">
+                        <div class="milestone-header">
+                            <h4 class="milestone-title">${milestone.description || 'Milestone'}</h4>
+                            <span class="milestone-status ${milestone.completed ? 'status-completed' : 'status-pending'}">
+                                ${milestone.completed ? 'Completed' : 'Pending'}
+                            </span>
+                        </div>
+                        
+                        <div style="color: #6b7280; font-size: 0.9rem; margin-bottom: 1rem;">
+                            <div>Due: ${dueDate}</div>
+                            ${milestone.completed_at ? `<div>Completed: ${shared.formatDate(milestone.completed_at)}</div>` : ''}
+                            ${milestone.photo_urls && milestone.photo_urls.length > 0 ? 
+                                `<div>${milestone.photo_urls.length} photos attached</div>` : ''}
+                        </div>
+                        
+                        <div>
+                            <a href="/projects/contractor/milestones.html?project=${currentProject.id}&milestone=${milestone.id}" 
+                               class="update-link">
+                                Update Milestone
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function updateStatsAndExpenses(expenses) {
+            const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const expenseCount = expenses.length;
+            const utilization = ((totalExpenses / currentProject.total_budget) * 100).toFixed(1);
+            
+            document.getElementById('expense-count').textContent = expenseCount;
+            document.getElementById('utilization-rate').textContent = utilization + '%';
+
+            const recentExpenses = expenses.slice(0, 5);
+            let expensesHtml = '';
+            
+            if (recentExpenses.length > 0) {
+                recentExpenses.forEach(expense => {
+                    expensesHtml += `
+                        <div class="expense-item">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                <div style="font-weight: 500;">${expense.description || 'Expense'}</div>
+                                <div style="font-weight: 600; color: #059669;">${shared.formatCurrency(expense.amount)}</div>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #6b7280;">${shared.formatDate(expense.spent_on)}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                expensesHtml = `
+                    <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                        No expenses recorded yet
+                    </div>
+                `;
+            }
+
+            document.getElementById('recent-expenses').innerHTML = expensesHtml;
+        }
+
+        function viewAllExpenses() {
+            if (currentProject) {
+                window.location.href = '/projects/contractor/expenses.html?id=' + currentProject.id;
+            }
+        }
+    </script>
+</body>
+</html>
