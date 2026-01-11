@@ -24,6 +24,18 @@ To provide transparency and accountability in public fund utilization by creatin
 - Focus on fundraising progress
 - Community participation in monitoring
 
+## System Screenshots
+
+<table>
+  <tr>
+    <td><img width="933" height="962" alt="Dashboard" src="https://github.com/user-attachments/assets/3a1557b1-c31b-4ca3-9d34-04e523493764" /></td>
+    <td><img width="936" height="946" alt="Project List" src="https://github.com/user-attachments/assets/0072d3cc-d8f8-4a30-a863-4707560a5ff0" /></td>
+  </tr>
+  <tr>
+    <td><img width="928" height="963" alt="Project Details" src="https://github.com/user-attachments/assets/c434cac8-9ce5-436e-b281-9c2521f6dc67" /></td>
+    <td><img width="888" height="880" alt="Expense Tracking" src="https://github.com/user-attachments/assets/6ae82364-dc1a-4a18-b85d-307cc189bf06" /></td>
+  </tr>
+</table>
 ## Core Features
 
 ### Project Management
