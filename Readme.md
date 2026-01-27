@@ -3,7 +3,7 @@ Public Project Management System (PPMS) is a transparent web-based platform desi
 
 ## Purpose
 
-To provide transparency and accountability in public fund utilization by creating a unified platform where all stakeholders can track project execution, budget utilization, and completion status.
+To provide transparency and accountability in public fund utilization by creating a unified platform where all stakeholders can track project execution, budget utilization, completion status and put in some request for work to be done.
 
 ## Target Users
 
